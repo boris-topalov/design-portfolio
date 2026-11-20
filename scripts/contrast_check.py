@@ -35,11 +35,17 @@ Gating (normal text, WCAG 2.1 SC 1.4.3, ratio >= 4.5):
     --on-accent on --accent
 
 Advisory (printed but NOT gating):
-    --text on --grad-2          (large text / UI, SC 1.4.11, ratio >= 3.0)
-    --text on --grad-4          (large text / UI, SC 1.4.11, ratio >= 3.0)
-    --text on #D9C3AB           (normal-text threshold 4.5; checked only when a
-                                 token with that value exists, e.g. --brand-5;
-                                 reported as missing otherwise)
+    --text       on --surface    (cards / elevated glass, 4.5)
+    --muted      on --surface    (card meta text, 4.5)
+    --accent-ink on --bg         (small accent text, 4.5)
+    --accent-2   on --bg         (secondary labels / counters, 4.5)
+    --text       on --grad-4     (large text / UI wash, 3.0)
+
+A missing gating token is always a FAIL: body copy cannot be measured without
+it. A missing advisory token is a SKIP, not a failure — the v3 palette dropped
+--grad-2, and decorative tokens keep changing with the design. That is what
+keeps the gate honest about what it can prove instead of turning red on every
+token rename.
 
 Gradients are decorative washes whose effective text colour is often set by the
 component (e.g. `.hero { color: #FFFFFF; --text: #FFFFFF }` over --grad-4), so a
@@ -47,17 +53,12 @@ raw token-vs-token comparison is only informational. Alpha channels are
 composited over the theme background; multi-stop values are judged by their
 worst stop against the text colour.
 
-Why the sand pair is advisory
------------------------------
-A usage audit of assets/css/*.css (grep for `#D9C3AB` / `--brand-5`) shows the
-colour appears ONLY as a gradient stop: the `--brand-5` token, the `--grad-1`
-and `--grad-text` gradients, and the `.btn--primary:hover` background sweep.
-No rule declares it as a `color` or as a flat background behind body text, and
-the only element whose paint reaches the sand stop keeps the dark `--on-accent`
-ink on top. The white-on-sand combination measured for the dark theme therefore
-cannot occur on the real page, so the pair stays an informational notice. If a
-future design puts text on sand, make it gating again and add a `--text-on-sand`
-token with the designer's approval.
+Why there is no sand-on-text row any more
+-----------------------------------------
+In v2 #D9C3AB appeared only as a gradient stop. In v3 it became --accent itself
+(dark) and --accent became bronze #7C5F3F (light), so the gating pair
+"--on-accent on --accent" already covers sand as a text background. A separate
+row would duplicate it while measuring a combination the design never renders.
 """
 
 from __future__ import annotations
@@ -70,40 +71,39 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TOKENS_REL = Path("assets/css/tokens.css")
 
-# Tokens that must be present in each theme. --grad-2/--grad-4 may live in the
-# shared base block, which both themes inherit.
+# Tokens that must be present in each theme. These are the ones the gating
+# pairs need; without them body-text contrast cannot be measured at all.
+# Decorative tokens (--grad-4, --accent-2, --accent-ink) are optional: the
+# palette may drop or rename them, and a missing advisory token is a SKIP.
 REQUIRED_TOKENS = (
     "--accent",
     "--bg",
     "--text",
     "--muted",
     "--on-accent",
-    "--grad-2",
-    "--grad-4",
+    "--surface",
 )
 
 NORMAL_MIN = 4.5   # WCAG 2.1 SC 1.4.3 — normal text
 LARGE_MIN = 3.0    # WCAG 2.1 SC 1.4.11 — large text / UI components
 
-SAND_HEX = "#D9C3AB"
-
-# Shown next to the advisory sand row. The colour is a decorative gradient stop
-# in the CSS, never a text background; see the module docstring / QA report.
-SAND_ADVISORY_NOTE = (
-    "advisory: #D9C3AB is a decorative gradient stop, not a text background"
-)
+ADVISORY_SKIP_NOTE = "token not defined in this palette (advisory row skipped)"
 
 # (label, fg, bg, min_ratio, gating)
 #
-# The sand pair is advisory: a CSS usage audit found #D9C3AB only as gradient
-# stops (--brand-5 / --grad-1 / --grad-text / .btn--primary:hover), never as a
-# background behind text.
+# Gating = the three combinations that carry body copy in both themes of the
+# neutral "quiet glass" palette: ink on the page, muted ink on the page, and the
+# ink the design puts on an accent fill (sand in dark, bronze in light).
+# Everything else is advisory: card/glass surfaces, small accent text, the
+# secondary cool accent, and the decorative gradient wash.
 PAIR_SPECS = (
     ("text on bg", "--text", "--bg", NORMAL_MIN, True),
     ("muted on bg", "--muted", "--bg", NORMAL_MIN, True),
     ("on-accent on accent", "--on-accent", "--accent", NORMAL_MIN, True),
-    ("text on sand " + SAND_HEX, "--text", SAND_HEX, NORMAL_MIN, False),
-    ("text on grad-2", "--text", "--grad-2", LARGE_MIN, False),
+    ("text on surface", "--text", "--surface", NORMAL_MIN, False),
+    ("muted on surface", "--muted", "--surface", NORMAL_MIN, False),
+    ("accent-ink on bg", "--accent-ink", "--bg", NORMAL_MIN, False),
+    ("accent-2 on bg", "--accent-2", "--bg", NORMAL_MIN, False),
     ("text on grad-4", "--text", "--grad-4", LARGE_MIN, False),
 )
 
@@ -472,35 +472,26 @@ def evaluate_theme(theme, tokens):
         if bg_colours:
             underlay = composite(bg_colours[0], (255.0, 255.0, 255.0))
 
-    sand_present = has_colour(tokens, SAND_HEX)
-
     for label, fg_name, bg_name, minimum, gating in PAIR_SPECS:
-        if label.startswith("text on sand") and not sand_present:
-            rows.append({
-                "theme": theme, "pair": label, "fg": "-", "bg": "-",
-                "ratio": None, "min": minimum, "gating": gating,
-                "status": "SKIP",
-                "note": f"no token resolves to {SAND_HEX}",
-            })
-            continue
-
         fg_entry = tokens.get(fg_name) if fg_name.startswith("--") else None
         bg_entry = tokens.get(bg_name) if bg_name.startswith("--") else None
 
+        missing_token = None
         if fg_name.startswith("--") and fg_entry is None:
-            problems.append(f"{theme}: {label}: token {fg_name} is missing")
+            missing_token = fg_name
+        elif bg_name.startswith("--") and bg_entry is None:
+            missing_token = bg_name
+        if missing_token:
+            if gating:
+                problems.append(
+                    f"{theme}: {label}: token {missing_token} is missing"
+                )
             rows.append({
                 "theme": theme, "pair": label, "fg": fg_name, "bg": bg_name,
                 "ratio": None, "min": minimum, "gating": gating,
-                "status": "FAIL", "note": f"{fg_name} missing",
-            })
-            continue
-        if bg_name.startswith("--") and bg_entry is None:
-            problems.append(f"{theme}: {label}: token {bg_name} is missing")
-            rows.append({
-                "theme": theme, "pair": label, "fg": fg_name, "bg": bg_name,
-                "ratio": None, "min": minimum, "gating": gating,
-                "status": "FAIL", "note": f"{bg_name} missing",
+                "status": "FAIL" if gating else "SKIP",
+                "note": (f"{missing_token} missing"
+                         if gating else ADVISORY_SKIP_NOTE),
             })
             continue
 
@@ -535,7 +526,7 @@ def evaluate_theme(theme, tokens):
             })
             continue
         status = "PASS" if ratio >= minimum else "FAIL"
-        note = SAND_ADVISORY_NOTE if label.startswith("text on sand") else ""
+        note = ""
         rows.append({
             "theme": theme,
             "pair": label,
@@ -634,17 +625,18 @@ def main(argv=None):
             if name in tokens:
                 value, line = tokens[name]
                 print(f"   {name:<12} = {value}   (tokens.css:{line})")
-        sand = SAND_HEX + (" found" if has_colour(tokens, SAND_HEX) else " not found")
-        print(f"   {SAND_HEX:<12} = {sand}")
+        for name in ("--accent-ink", "--accent-2", "--grad-4"):
+            if name in tokens:
+                value, line = tokens[name]
+                print(f"   {name:<12} = {value[:58]}   (tokens.css:{line})")
         print()
         print_table(rows)
 
     print("-" * 72)
-    print(" * advisory pair: printed for information and NOT counted in the exit code.")
-    print("   Gradient pairs are decorative washes whose text colour is set by the")
-    print("   component on top (.hero: #FFFFFF etc.); the sand pair is advisory")
-    print("   because #D9C3AB is only a gradient stop in the CSS, not a text")
-    print("   background.")
+    print(" * advisory rows: printed for information and NOT counted in the exit code.")
+    print("   Gating = text/bg, muted/bg, on-accent/accent in BOTH themes. Surfaces,")
+    print("   small accent text, the secondary cool accent and the gradient wash are")
+    print("   advisory; a decorative token missing from the palette is a SKIP.")
     print("-" * 72)
     if problems:
         print("PROBLEMS:")

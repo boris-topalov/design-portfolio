@@ -1,12 +1,15 @@
 /* ==========================================================================
-   Components v2 — "Molten horizon"
-   Surface archetype: Decide / Learn (portfolio). One idea per section;
-   dark hero + dark CTA band carry the brand, light case blocks carry proof.
-   Depends on tokens.css. All legacy class names stay functional.
+   Components v3 — "Quiet glass"
+   Surface archetype: Decide / Learn (portfolio). One idea per section.
+   The skin is neutral: near-black glass, hairlines, one muted sand accent,
+   motion that settles instead of performing. Every legacy class from v2
+   stays functional; the motion-library primitives (.morph-island, .card-tilt,
+   .hold-btn, .stream, .marquee, .reveal, .cursor-glow…) are additive.
+   Depends on tokens.css. Motion spec: .design/design-notes-v3.md
    ========================================================================== */
 
 /* ==========================================================================
-   0. Global surface + shared primitives
+   0. Global surface, glass, grain, shared type utilities
    ========================================================================== */
 
 html {
@@ -23,7 +26,7 @@ body {
   z-index: 1;
 }
 
-/* Grain: one reusable texture layer. Pure CSS + inline SVG tile. --------- */
+/* Grain: one reusable texture layer, never above the content -------------- */
 
 .grain {
   position: relative;
@@ -34,8 +37,9 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 0;
   pointer-events: none;
+  border-radius: inherit;
   background-image: var(--grain-url);
   background-size: 180px 180px;
   background-repeat: repeat;
@@ -43,27 +47,51 @@ body {
   mix-blend-mode: overlay;
 }
 
-/* Small caps label: the second voice of the system after the display face. */
+/* .glass — base translucent surface. Use only where something real sits
+   behind the pane (header, floating controls, overlays). A glass card on a
+   flat background is decoration, not depth. ------------------------------- */
 
-/* .label — chip (рамка приходит из base.css), .eyebrow — маркер с точкой. */
-
-.label {
-  justify-self: start;
-  align-self: start;
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  border-color: var(--line-strong);
+.glass {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.35);
+  backdrop-filter: blur(var(--blur)) saturate(1.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), var(--shadow);
 }
 
-.label::before {
-  content: none;
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass {
+    background: var(--surface);
+  }
 }
+
+/* Fixed dark scope: hero, closing band, NDA card and footer stay dark in
+   both themes. Components inside inherit these values automatically. ------ */
+
+:is(.hero--dark, .cta-band, .case-cta, .request-card, .site-footer) {
+  --bg: #08090A;
+  --bg-2: #0E1012;
+  --surface: #0E1012;
+  --surface-2: #141719;
+  --text: #EDEDED;
+  --muted: #8A8F98;
+  --line: rgba(255, 255, 255, .10);
+  --line-strong: rgba(255, 255, 255, .18);
+  --accent: #D9C3AB;
+  --accent-2: #8A94A6;
+  --accent-soft: rgba(217, 195, 171, .12);
+  --accent-ink: #D9C3AB;
+  --on-accent: #08090A;
+  --glass: rgba(255, 255, 255, .045);
+  --glass-border: rgba(255, 255, 255, .09);
+  --shadow: 0 1px 1px rgba(0, 0, 0, .40), 0 20px 50px -24px rgba(0, 0, 0, .75);
+  --shadow-glow: 0 18px 60px -32px rgba(217, 195, 171, .38);
+  --grad-4: radial-gradient(120% 90% at 15% 0%, #101214 0%, #08090A 62%, #08090A 100%);
+}
+
+/* Eyebrow — a hairline marker, not a glowing dot ------------------------- */
 
 .eyebrow {
   display: inline-flex;
@@ -82,11 +110,35 @@ body {
 .eyebrow::before {
   content: "";
   flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 16px;
+  height: 1px;
   background: var(--accent);
-  box-shadow: 0 0 10px 1px var(--glow-soft);
+}
+
+/* Label — outline chip, 10–11px caps ------------------------------------- */
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  align-self: start;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.label::before {
+  content: none;
 }
 
 .lead {
@@ -97,8 +149,8 @@ body {
   text-wrap: pretty;
 }
 
-/* Utilities must survive component scopes: .case-block p and .case-card p
-   set a body colour with higher specificity, so restate .muted for them. */
+/* Utilities must survive component scopes: .case-block p / .case-card p
+   set their own colour, so restate .muted for them. ---------------------- */
 
 .muted,
 p.muted,
@@ -114,124 +166,275 @@ p.muted,
 }
 
 /* ==========================================================================
-   1. Header — dark glass, always visible CTA
+   1. Header — floating glass capsule + morphing nav island
    ========================================================================== */
 
 .site-header {
   position: sticky;
   top: 0;
   z-index: 80;
-  /* Near-opaque, both themes: the bar scrolls over the black hero, the warm
-     glow AND the #F9F9F9 case panels. With the old .62 glass the composition
-     over a light panel was rgb(101,100,100) and .nav a dropped to 2.45:1 —
-     now the bar stays dark (rgb(20,20,20)) and the nav holds 7.66:1. */
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--header-border, var(--line));
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  backdrop-filter: blur(20px) saturate(150%);
-  transition: background-color var(--dur) var(--ease-out),
-              border-color var(--dur) var(--ease-out);
-}
-
-/* Fallback for engines without backdrop-filter: solid enough to stay legible */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header {
-    background: var(--bg);
-  }
+  padding: 10px 12px 0;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
 }
 
 .site-header__inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px var(--space-2);
-  min-height: var(--header-h);
-  padding-block: 10px;
+  gap: 8px var(--space-2);
+  min-height: 56px;
+  padding: 6px 8px 6px 16px;
+  background: var(--header-bg);
+  border: 1px solid var(--header-border);
+  border-radius: var(--radius-pill);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 34px -26px rgba(0, 0, 0, .8);
+  pointer-events: auto;
 }
 
-/* Nav sits in the optical centre; the action cluster stays tightly grouped
-   on the right instead of being spread by space-between. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header__inner {
+    background: var(--bg-2);
+  }
+}
 
-.site-header .nav {
-  margin-inline: auto;
+/* motion.js adds .is-stuck after the first 40px of scroll. */
+
+.site-header.is-stuck .site-header__inner {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 22px 44px -30px rgba(0, 0, 0, .9);
 }
 
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  margin-right: 0;
+  padding-block: 8px;
   font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1;
-  letter-spacing: .1em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--header-ink-hover, var(--text));
+  color: var(--header-ink-hover);
   white-space: nowrap;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.logo:hover {
+  opacity: .82;
 }
 
 .logo::before {
   content: "";
   flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
   background: var(--accent);
-  box-shadow: 0 0 12px 0 var(--glow-hard);
-  transform: none;
-  transition: box-shadow var(--dur) var(--ease-out);
-}
-
-.logo:hover::before {
-  transform: none;
-  box-shadow: 0 0 18px 2px var(--glow-hard);
 }
 
 .nav {
   display: flex;
   align-items: center;
-  gap: clamp(14px, 2.2vw, 30px);
+  gap: 2px;
   min-width: 0;
 }
 
-.nav a {
+.site-header .nav {
+  margin-inline: auto;
+}
+
+.nav a,
+.nav-pill {
   position: relative;
-  padding-block: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: var(--radius-pill);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: .1em;
+  line-height: 1.2;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--header-ink, var(--muted));
+  color: var(--header-ink);
   white-space: nowrap;
-  transition: color var(--dur) var(--ease-out);
+  transition: color var(--dur-1) var(--ease-out);
 }
 
 .nav a::after {
   content: "";
   position: absolute;
-  inset-inline: 0;
-  bottom: 2px;
+  left: 13px;
+  right: 13px;
+  bottom: 4px;
   height: 1px;
   background: var(--accent);
-  box-shadow: 0 0 8px 0 var(--glow-hard);
-  opacity: 1;
+  opacity: .55;
   transform: scaleX(0);
   transform-origin: left center;
-  transition: transform var(--dur) var(--ease-out);
+  transition: transform var(--dur-2) var(--spring);
 }
 
 .nav a:hover,
 .nav a:focus-visible,
-.nav a[aria-current="page"] {
-  color: var(--header-ink-hover, var(--text));
+.nav a[aria-current="page"],
+.nav-pill:hover,
+.nav-pill.is-active,
+.nav-pill[aria-current] {
+  color: var(--header-ink-hover);
 }
 
 .nav a:hover::after,
 .nav a:focus-visible::after,
 .nav a[aria-current="page"]::after {
   transform: scaleX(1);
+}
+
+/* Morph island — a compact "Меню" capsule. The pill is a sliding highlight
+   behind the toggle (motion.js writes --pill-w and --pill-x); the panel
+   unfolds below with transform/opacity, never by animating height. ------- */
+
+.morph-island {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  margin-inline: auto;
+}
+
+/* Highlight layer: width is measured once by motion.js, travel is transform. */
+
+.morph-island__pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: var(--pill-w, calc(100% - 8px));
+  border: 1px solid rgba(217, 195, 171, .20);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  transform: translate3d(var(--pill-x, 0px), 0, 0);
+  pointer-events: none;
+  transition: transform var(--dur-2) var(--spring),
+              background-color var(--dur-2) var(--ease-out);
+}
+
+.morph-island.is-open .morph-island__pill {
+  background: rgba(217, 195, 171, .18);
+}
+
+.morph-island__toggle,
+.nav-pill.morph-island__toggle {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--header-ink-hover);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease-out);
+}
+
+.morph-island__toggle:hover {
+  color: var(--header-ink-hover);
+}
+
+.morph-island__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-pill);
+}
+
+/* Chevron drawn from two borders: open state flips it up. */
+
+.morph-island__icon,
+.morph-island__chev {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--dur-2) var(--spring);
+}
+
+.morph-island.is-open .morph-island__icon,
+.morph-island.is-open .morph-island__chev {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.morph-island__panel,
+.morph-island [data-morph-panel] {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 2;
+  min-width: 236px;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  background: var(--bg-2);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-50%, -8px, 0) scale(.97);
+  transform-origin: 50% 0;
+  transition: opacity var(--dur-2) var(--ease-out),
+              transform var(--dur-2) var(--spring),
+              visibility 0s linear var(--dur-2);
+}
+
+.morph-island__panel.is-open,
+.morph-island.is-open .morph-island__panel,
+.morph-island.is-open [data-morph-panel] {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(-50%, 0, 0) scale(1);
+  transition-delay: 0s;
+}
+
+.morph-island__panel .nav {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.morph-island__panel .nav a {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 10px 12px;
+}
+
+.morph-island__panel .nav a::after {
+  left: 12px;
+  right: 12px;
+  bottom: 5px;
+}
+
+.morph-island__panel .header-cta {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-top: 6px;
 }
 
 /* Control pills — theme, language, header CTA ---------------------------- */
@@ -242,50 +445,54 @@ p.muted,
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--line-strong);
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--header-border);
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--header-ink, var(--muted));
+  color: var(--header-ink);
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: .1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: color var(--dur) var(--ease-out),
-              border-color var(--dur) var(--ease-out),
-              background-color var(--dur) var(--ease-out),
-              box-shadow var(--dur) var(--ease-out);
+  transition: color var(--dur-1) var(--ease-out),
+              background-color var(--dur-1) var(--ease-out),
+              border-color var(--dur-1) var(--ease-out);
 }
 
 .theme-toggle {
   padding: 0;
-  width: 40px;
+  width: 36px;
 }
 
 .theme-toggle svg {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   stroke: currentColor;
   fill: none;
-  stroke-width: 1.6;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .theme-toggle:hover,
 .lang-toggle:hover {
-  color: var(--header-ink-hover, var(--text));
-  border-color: var(--accent);
+  color: var(--header-ink-hover);
   background: var(--accent-soft);
+  border-color: var(--accent-soft);
 }
 
-/* Two-icon convention: [data-theme-icon="sun"] shows in dark, "moon" in light.
-   A single icon (or none) keeps working — this only refines the swap. */
+.theme-toggle:focus-visible,
+.lang-toggle:focus-visible,
+.header-cta:focus-visible {
+  border-radius: var(--radius-pill);
+}
+
+/* Two-icon convention: [data-theme-icon="sun"] in dark, "moon" in light. */
 
 .theme-toggle [data-theme-icon] {
   display: none;
@@ -298,23 +505,20 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 .lang-toggle a {
-  padding: 4px 6px;
-  border-radius: var(--radius-pill);
-  color: var(--header-ink, var(--muted));
+  padding: 2px 4px;
+  color: inherit;
   font-size: inherit;
   letter-spacing: inherit;
 }
 
 .lang-toggle a:hover {
-  color: var(--header-ink-hover, var(--text));
+  color: var(--header-ink-hover);
 }
 
 .lang-toggle a[aria-current="true"],
 .lang-toggle a[aria-current="page"],
 .lang-toggle .is-active {
-  background: var(--accent);
-  color: var(--on-accent);
-  box-shadow: none;
+  color: var(--accent);
 }
 
 .header-cta {
@@ -322,29 +526,27 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 18px;
+  min-height: 38px;
+  padding: 0 16px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background: var(--text);
   color: var(--on-accent);
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 650;
   line-height: 1;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
   text-decoration: none;
   white-space: nowrap;
-  transition: background-color var(--dur) var(--ease-out),
-              box-shadow var(--dur) var(--ease-out),
-              transform var(--dur) var(--ease-out);
+  transition: transform var(--dur-2) var(--spring),
+              box-shadow var(--dur-2) var(--ease-out),
+              opacity var(--dur-1) var(--ease-out);
 }
 
 .header-cta:hover {
-  background: var(--accent-hover);
-  box-shadow: var(--shadow-glow);
   transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--accent-soft), var(--shadow-glow);
 }
 
 .header-cta:active {
@@ -352,7 +554,7 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 /* ==========================================================================
-   2. Buttons
+   2. Buttons, hold-to-confirm, magnetic wrapper
    ========================================================================== */
 
 .btn {
@@ -360,23 +562,22 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 48px;
-  padding: 0 26px;
+  min-height: 46px;
+  padding: 0 22px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  letter-spacing: .01em;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color var(--dur) var(--ease-out),
-              border-color var(--dur) var(--ease-out),
-              color var(--dur) var(--ease-out),
-              box-shadow var(--dur) var(--ease-out),
-              transform var(--dur) var(--ease-out);
+  transition: background-color var(--dur-2) var(--ease-out),
+              border-color var(--dur-2) var(--ease-out),
+              color var(--dur-1) var(--ease-out),
+              box-shadow var(--dur-2) var(--ease-out),
+              transform var(--dur-2) var(--spring);
 }
 
 .btn:hover {
@@ -394,16 +595,13 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 .btn--primary {
-  background-color: var(--accent);
-  background-image: linear-gradient(100deg, #E85002 0%, #F16001 100%);
+  background-color: var(--text);
   color: var(--on-accent);
-  box-shadow: 0 10px 30px -14px rgba(232, 80, 2, .65);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .30), 0 14px 34px -24px rgba(0, 0, 0, .8);
 }
 
 .btn--primary:hover {
-  /* Molten sweep: stays bright enough to keep dark ink at 5.2:1+ */
-  background-image: linear-gradient(100deg, #F16001 0%, #E85002 45%, #D9C3AB 100%);
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 0 1px var(--accent-soft), var(--shadow-glow);
 }
 
 .btn--ghost {
@@ -422,8 +620,178 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   outline-color: var(--accent);
 }
 
+/* Hold button — a 32px progress dial + label + timing hint. JS writes
+   --hold-progress (0…1) on the button; the conic ring and the fill read it.
+   Everything is transform / background — no geometry changes. ----------- */
+
+.hold-btn {
+  --hold-progress: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 16px 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--glass);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: .01em;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--dur-2) var(--ease-out),
+              background-color var(--dur-2) var(--ease-out),
+              box-shadow var(--dur-2) var(--ease-out);
+}
+
+.hold-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.hold-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-pill);
+}
+
+.hold-btn.is-holding {
+  border-color: var(--accent);
+}
+
+.hold-btn.is-complete {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-glow);
+}
+
+.hold-btn__ring {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+/* Conic progress ring: masked to a 2px stroke over the circle edge. */
+
+.hold-btn__ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: conic-gradient(from -90deg,
+    var(--accent) calc(var(--hold-progress) * 1turn),
+    transparent 0);
+  -webkit-mask: radial-gradient(farthest-side,
+    transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side,
+    transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  pointer-events: none;
+}
+
+/* Small centre dot so the empty ring reads as a dial, not a hole. */
+
+.hold-btn__ring::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: .4;
+}
+
+.hold-btn__fill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  opacity: .12;
+  transform: scaleY(var(--hold-progress));
+  transform-origin: bottom center;
+  pointer-events: none;
+  transition: transform .1s linear;
+}
+
+/* Nested markup (fill inside the ring) fills the dial instead of the pill. */
+
+.hold-btn__ring .hold-btn__fill {
+  border-radius: 50%;
+  opacity: .20;
+  transition: transform .1s linear;
+}
+
+.hold-btn.is-complete .hold-btn__fill {
+  opacity: .22;
+}
+
+.hold-btn__label,
+.hold-btn__hint {
+  position: relative;
+  z-index: 2;
+}
+
+.hold-btn__label {
+  white-space: nowrap;
+}
+
+.hold-btn__hint {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Magnetic wrapper — JS writes --mg-x / --mg-y in px ---------------------- */
+
+.magnetic {
+  --mg-x: 0px;
+  --mg-y: 0px;
+  display: inline-flex;
+  transform: translate3d(var(--mg-x), var(--mg-y), 0);
+  transition: transform var(--dur-2) var(--spring);
+}
+
+.magnetic.is-magnetic {
+  will-change: transform;
+}
+
+.magnetic:hover,
+.magnetic:focus-visible {
+  transform: translate3d(var(--mg-x), var(--mg-y), 0);
+}
+
+.magnetic:active {
+  transform: translate3d(calc(var(--mg-x) * .5), calc(var(--mg-y) * .5), 0);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .magnetic {
+    transform: none;
+  }
+}
+
 /* ==========================================================================
-   3. Hero — dark stage, hemisphere glow, huge tight caps
+   3. Hero — quiet stage, huge caps, word roll, stream, cursor glow
    ========================================================================== */
 
 .hero,
@@ -432,88 +800,34 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   position: relative;
   isolation: isolate;
   overflow: clip;
-  padding-block: clamp(52px, 7vw, 112px) clamp(112px, 13vw, 200px);
-  background-color: #000000;
-  background-image: var(--grad-4);
-  color: #FFFFFF;
-
-  /* Local token scope: dark, in both themes. Cards and text inside inherit. */
-  --text: #FFFFFF;
-  --muted: #A7A7A7;
-  --line: rgba(255, 255, 255, .12);
-  --line-strong: rgba(255, 255, 255, .26);
-  --surface: #0D0C0B;
-  --surface-2: #171513;
-  --accent-ink: #F16001;
-  --on-accent: #0A0A0A;
+  padding-block: clamp(64px, 9vw, 132px) clamp(72px, 10vw, 148px);
+  color: var(--text);
+  background-color: var(--bg);
+  background-image: radial-gradient(90% 70% at 50% -20%, rgba(255, 255, 255, .045) 0%, rgba(255, 255, 255, 0) 62%);
 }
 
-/* Hemisphere glow. Explicit element from markup, or generated fallback. */
+/* The horizon is a 1px sand hairline now, not a glowing hemisphere. */
 
-.hero__glow,
 .hero::before,
+.hero--dark::before,
 .case-hero::before {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: -2%;
-  z-index: -1;
-  width: min(1340px, 150vw);
-  aspect-ratio: 2.4 / 1;
-  transform: translateX(-50%);
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  /* Stops are tight on purpose: the core stays at the horizon, the haze is
-     already <10% by the time it reaches the CTA row, so #A7A7A7 lead text keeps
-     its contrast. Verified by pixel sampling, see design-notes-v2 §5. */
-  background:
-    /* hot core sitting on the horizon */
-    radial-gradient(20% 42% at 50% 100%,
-      rgba(255, 214, 176, .95) 0%,
-      rgba(241, 96, 1, .6) 40%,
-      rgba(241, 96, 1, 0) 78%),
-    /* wide body of the dome */
-    radial-gradient(62% 100% at 50% 100%,
-      rgba(241, 96, 1, .92) 0%,
-      rgba(241, 96, 1, .55) 18%,
-      rgba(193, 8, 1, .22) 36%,
-      rgba(193, 8, 1, 0) 56%);
-  filter: blur(26px) saturate(120%);
-  box-shadow: inset 0 2px 0 rgba(255, 214, 180, .45);
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(217, 195, 171, .38) 28%,
+    rgba(217, 195, 171, .38) 72%,
+    transparent 100%);
   pointer-events: none;
 }
 
-/* A crisp rim light along the dome so it reads as a horizon, not a blob. */
-
-.hero:has(.hero__glow)::before,
-.case-hero:has(.hero__glow)::before {
-  display: none;
-}
+/* Legacy markup may still contain the orange glow element: retire it. */
 
 .hero__glow {
-  display: block;
-}
-
-/* Horizon line + grain over the whole stage */
-
-.hero::after,
-.hero--dark::after,
-.case-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: var(--grain-url);
-  background-size: 180px 180px;
-  opacity: var(--grain-opacity);
-  mix-blend-mode: overlay;
-}
-
-.hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: clamp(28px, 4vw, 44px);
+  display: none;
 }
 
 .hero__title,
@@ -522,109 +836,82 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   margin: 0;
   max-width: 19ch;
   font-family: var(--font-display);
-  font-size: var(--fs-display);
-  font-weight: 800;
+  font-size: var(--fs-hero);
+  font-weight: 700;
   line-height: var(--lh-display);
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
   text-wrap: balance;
   overflow-wrap: break-word;
-  color: #FFFFFF;
+  color: var(--text);
 }
-
-/* h1 without the hero__title class (older markup) keeps a mid scale so a
-   long Russian headline never turns into a 6-line wall. */
 
 .hero h1:not(.hero__title),
 .hero--dark h1:not(.hero__title),
 .case-hero h1:not(.hero__title) {
-  font-size: clamp(34px, 5.4vw, 84px);
+  font-size: clamp(34px, 5.2vw, 78px);
   max-width: 17ch;
 }
-
-/* Optional accent word: <span class="accent"> / <em> inside the title */
 
 .hero__title .accent,
 .hero__title em,
 .hero h1 em,
 .case-hero h1 em {
   font-style: normal;
-  background-image: var(--grad-text);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent);
 }
 
-/* If clipped text is unsupported the word must still be readable. */
-
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .hero__title .accent,
-  .hero__title em,
-  .hero h1 em,
-  .case-hero h1 em {
-    background-image: none;
-    color: var(--accent);
-    -webkit-text-fill-color: currentColor;
-  }
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(28px, 4vw, 40px);
 }
 
 .hero .eyebrow,
 .hero--dark .eyebrow,
-.hero__meta {
-  color: #A7A7A7;
+.case-hero .eyebrow {
+  margin-bottom: clamp(18px, 2.4vw, 26px);
+  color: var(--muted);
 }
 
 .hero .lead,
 .hero--dark .lead,
 .case-hero .lead {
   max-width: 54ch;
-  margin-top: clamp(18px, 2.2vw, 26px);
-  color: #A7A7A7;
+  margin-top: clamp(18px, 2.2vw, 24px);
+  color: var(--muted);
 }
-
-.hero .eyebrow,
-.hero--dark .eyebrow,
-.case-hero .eyebrow {
-  margin-bottom: clamp(18px, 2.4vw, 28px);
-}
-
-/* Trust row: "8 лет · senior product designer · …" */
 
 .hero__meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 0;
-  /* base.css caps every <p> at 68ch; at 12px caps that is ~524px, so the row
-     wrapped on the desktop even with 1130px available and a separator was
-     left dangling at the end of the first line. Let the row use its line. */
   max-width: none;
-  margin: clamp(26px, 3.4vw, 40px) 0 0;
+  margin: clamp(24px, 3.2vw, 36px) 0 0;
   font-family: var(--font-sans);
   font-size: var(--fs-label);
   font-weight: 600;
-  letter-spacing: .14em;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  color: #A7A7A7;
+  color: var(--muted);
 }
 
-.hero__meta > * {
+.hero__meta > *,
+.hero__meta-item {
   display: inline-flex;
   align-items: center;
   margin: 0;
 }
 
-/* Legacy markup (bare spans): the dot is drawn on the following item. */
 .hero__meta > * + *::before {
   content: "·";
   margin-inline: 12px;
-  color: #E85002;
+  color: var(--accent);
 }
 
-/* Markup v2: separators are real <span class="hero__meta-sep" aria-hidden>
-   nodes, so CSS can drop them at narrow widths. When they exist, the legacy
-   pseudo dot must be switched off — otherwise every separator renders "· ·". */
 .hero__meta:has(.hero__meta-sep) {
   gap: 6px 12px;
 }
@@ -637,16 +924,148 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   flex: none;
   justify-content: center;
   min-width: .5em;
-  color: var(--accent-ink, #E85002);
+  color: var(--accent);
   font-weight: 700;
-  /* inherit the row's line box, so the dot sits on the same baseline as the
-     caps instead of floating 3–4px lower in its own 1-line box */
   line-height: inherit;
   user-select: none;
 }
 
+/* Word roll — one inline slot, several stacked phrases. motion.js paints a
+   single word at a time (translate3d ±105%, opacity) and sets the host
+   min-height from the tallest word, so the title never changes height.
+   CSS stacks every word into the same grid cell and shows the first one
+   before JS boots. No CSS animation here: inline styles own the motion. -- */
+
+.word-roll {
+  display: inline-grid;
+  max-width: 100%;
+  overflow: clip;
+  overflow-clip-margin: .12em;
+  vertical-align: baseline;
+  text-align: inherit;
+}
+
+h1.word-roll,
+h2.word-roll {
+  display: grid;
+  width: 100%;
+}
+
+.word-roll__word {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  transform: translate3d(0, -105%, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.word-roll__word:first-child {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Streaming text — the host keeps its own display (a <p> stays block, a
+   <span> stays inline). The cursor is an inline-block bar, so the line box
+   never grows. Two lines are reserved while the phrase types to keep the
+   CTA band and the hero stable. ---------------------------------------- */
+
+p.stream,
+.lead.stream,
+p:has(> .stream),
+p:has(> [data-stream]) {
+  min-height: 3.2em;
+}
+
+.stream__cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: .08em;
+  border-radius: 1px;
+  background: var(--accent);
+  vertical-align: -.16em;
+  animation: stream-blink 1.05s steps(1, end) infinite;
+}
+
+/* Solid caret while characters arrive, blink once the phrase is typed. */
+
+.stream.is-typing .stream__cursor {
+  animation: none;
+  opacity: 1;
+}
+
+.stream.is-done .stream__cursor,
+.stream.is-typed .stream__cursor {
+  animation: stream-blink 1.05s steps(1, end) infinite;
+  opacity: 1;
+}
+
+@keyframes stream-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Scramble — JS swaps characters; CSS only holds the metric and the tone. */
+
+.scramble {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+  transition: color var(--dur-1) linear;
+}
+
+.scramble.is-scrambling,
+.scramble[data-scrambling] {
+  color: var(--accent-2);
+}
+
+/* Cursor glow — decorative, low alpha, disabled on touch / reduced motion */
+
+.cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: clamp(340px, 44vw, 560px);
+  height: clamp(340px, 44vw, 560px);
+  margin: calc(clamp(340px, 44vw, 560px) / -2) 0 0 calc(clamp(340px, 44vw, 560px) / -2);
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    rgba(217, 195, 171, .16) 0%,
+    rgba(217, 195, 171, .06) 42%,
+    rgba(217, 195, 171, 0) 72%);
+  mix-blend-mode: screen;
+  /* motion.js writes the pointer position into --cursor-x / --cursor-y; the
+     negative margin above does the centering. ------------------------- */
+  transform: translate3d(var(--cursor-x, 0px), var(--cursor-y, 0px), 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-3) var(--ease-out);
+  will-change: transform;
+}
+
+.cursor-glow.is-active,
+.cursor-glow.is-visible {
+  opacity: .85;
+}
+
+html[data-theme="light"] .cursor-glow {
+  background: radial-gradient(closest-side,
+    rgba(16, 18, 20, .10) 0%,
+    rgba(16, 18, 20, .04) 42%,
+    rgba(16, 18, 20, 0) 72%);
+  mix-blend-mode: multiply;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cursor-glow {
+    display: none;
+  }
+}
+
 /* ==========================================================================
-   4. Sections — dark canvas, light case panels
+   4. Sections, paper bands, reveal, marquee
    ========================================================================== */
 
 .section {
@@ -655,68 +1074,168 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 .section + .section {
-  padding-block-start: clamp(32px, 5vw, 64px);
+  padding-block-start: clamp(28px, 5vw, 56px);
 }
 
 .section .grid,
 .section .case-grid {
-  margin-top: clamp(32px, 4vw, 56px);
+  margin-top: clamp(28px, 4vw, 48px);
 }
 
-/* Light panel inside the dark site: warm off-white, dark type. */
+.grid {
+  gap: clamp(16px, 2vw, 24px);
+}
+
+/* Paper proof band: fixed light scope in BOTH themes. It is the editorial
+   break between two dark glass stages; every child re-tokenises itself. -- */
 
 .section--light,
 .case-block {
   position: relative;
+  padding-block: clamp(56px, 8vw, 112px);
   background: var(--l-bg);
   color: var(--l-text);
   isolation: isolate;
 
-  --bg: #F9F9F9;
-  --surface: #FFFFFF;
-  --surface-2: #F1EFEC;
-  --text: #0A0A0A;
-  --muted: #646464;
-  --line: #E6E2DC;
-  --line-strong: #CFC9C1;
-  --accent-ink: #C10801;
-  --on-accent: #0A0A0A;
-  --shadow: 0 1px 2px rgba(20, 14, 9, .05), 0 10px 30px rgba(20, 14, 9, .07);
-  --shadow-lift: 0 2px 6px rgba(20, 14, 9, .06), 0 22px 48px rgba(20, 14, 9, .12);
+  --bg: var(--l-bg);
+  --bg-2: var(--l-elev);
+  --surface: var(--l-elev);
+  --surface-2: var(--l-elev-2);
+  --text: var(--l-text);
+  --muted: var(--l-muted);
+  --line: var(--l-line);
+  --line-strong: var(--l-line-strong);
+  --accent: #7C5F3F;
+  --accent-2: #5D6879;
+  --accent-soft: rgba(124, 95, 63, .10);
+  --accent-ink: #7C5F3F;
+  --on-accent: #F7F7F5;
+  --glass: rgba(255, 255, 255, .62);
+  --glass-border: rgba(16, 18, 20, .10);
+  --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 18px 44px -26px rgba(20, 22, 26, .20);
+  --shadow-glow: 0 16px 48px -30px rgba(124, 95, 63, .30);
+  --grain-opacity: var(--grain-opacity-light);
 }
 
 .section--light {
-  padding-block: clamp(56px, 8vw, 112px);
-  border-radius: var(--radius);
+  border-block: 1px solid var(--line);
 }
 
-.section--light.grain::after {
-  opacity: var(--grain-opacity-light);
+.section--light.grain::after,
+.case-block.grain::after {
   mix-blend-mode: multiply;
+  opacity: var(--grain-opacity-light);
 }
 
-.section h2,
-.section--light h2 {
+.section h2 {
   max-width: 18ch;
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-h2);
-  font-weight: 800;
-  line-height: .98;
-  letter-spacing: -.035em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -.03em;
   text-transform: uppercase;
-  color: inherit;
+  color: var(--text);
 }
 
 .section .lead {
   margin-top: var(--space-2);
 }
 
-/* ==========================================================================
-   5. Case cards — light cards, orange hover signal
-   ========================================================================== */
+/* Reveal — opacity + the individual `translate` property, so it composes
+   with .card-tilt / .magnetic transforms instead of fighting them.
+   Content is hidden only once motion.js has booted (html.js-motion), so a
+   missing or failed script never leaves the page blank. ------------------ */
 
-/* Generic card — neutral panel, inherits the current surface scope */
+.reveal {
+  transition: opacity var(--dur-3) var(--ease-out),
+              translate var(--dur-3) var(--spring);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+html.js-motion .reveal {
+  opacity: 0;
+  translate: 0 var(--reveal-y, 16px);
+}
+
+html.js-motion .reveal.is-visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Marquee — one track, duplicated content by markup ---------------------- */
+
+.marquee {
+  position: relative;
+  overflow: clip;
+  padding-block: 16px;
+  border-block: 1px solid var(--line);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+}
+
+.marquee-band {
+  padding-block: clamp(24px, 4vw, 40px);
+}
+
+.marquee__item {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.marquee__item::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 4px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: .55;
+}
+
+.marquee__track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
+  /* Padding equal to the gap makes -50% land exactly on the second copy:
+     width = 2 copies + 2N gaps, half = one copy + N gaps. */
+  padding-right: clamp(24px, 4vw, 56px);
+}
+
+/* motion.js duplicates the items first; animate only when the second copy
+   exists, otherwise -50% would expose an empty half. */
+
+html.js-motion .marquee__track {
+  animation: marquee-scroll var(--marquee-dur, 38s) linear infinite;
+  will-change: transform;
+}
+
+.marquee__track > * {
+  flex: none;
+}
+
+.marquee:hover .marquee__track {
+  animation-play-state: paused;
+}
+
+@keyframes marquee-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+/* ==========================================================================
+   5. Cards — glass panels, tilt, expand, NDA card
+   ========================================================================== */
 
 .card {
   padding: clamp(20px, 2.4vw, 28px);
@@ -747,25 +1266,22 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   min-width: 0;
   overflow: hidden;
   padding: 10px;
-  background: #FFFFFF;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  color: var(--l-text);
+  color: var(--text);
   text-decoration: none;
-  box-shadow: 0 1px 2px rgba(20, 14, 9, .04);
-  transition: transform var(--dur) var(--ease-out),
-              border-color var(--dur) var(--ease-out),
-              box-shadow var(--dur) var(--ease-out);
+  box-shadow: var(--shadow);
+  transition: transform var(--dur-3) var(--spring),
+              border-color var(--dur-2) var(--ease-out),
+              box-shadow var(--dur-3) var(--ease-out);
 }
 
-.case-card:hover,
-.case-card:focus-visible {
-  transform: translateY(-4px);
-  border-color: rgba(232, 80, 2, .55);
-  box-shadow:
-    0 0 0 1px rgba(232, 80, 2, .28),
-    0 26px 50px -26px rgba(232, 80, 2, .55),
-    0 2px 6px rgba(20, 14, 9, .06);
+.case-card:not(.card-tilt):hover,
+.case-card:not(.card-tilt):focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
 }
 
 .case-card:focus-visible {
@@ -780,16 +1296,10 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   aspect-ratio: 16 / 9;
   height: auto;
   object-fit: cover;
-  border-radius: calc(var(--radius) - 10px);
-  background: var(--l-elev-2);
+  border-radius: calc(var(--radius) - 8px);
+  background: var(--surface-2);
 }
 
-/* The pair in the first row sits in unequal tracks (1.16fr / 1fr). A
-   width-derived ratio therefore gave the two media wells different heights
-   (322px vs 276px at 1440px) and pushed the titles 46px apart. A fixed
-   height — width-independent — puts both titles on one line again.
-   16:10 crop, top-anchored: the dashboard cover is a portrait export, so the
-   overview bar + KPI row is the part worth showing. */
 .case-grid > .case-card:nth-child(-n + 2) img {
   height: clamp(196px, 20vw, 292px);
   aspect-ratio: auto;
@@ -801,47 +1311,315 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   max-height: 420px;
 }
 
+.case-card__media {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 8px);
+  background: var(--surface-2);
+}
+
+.case-card__media img {
+  border-radius: 0;
+}
+
+.case-card__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(16px, 2vw, 22px) clamp(10px, 1.4vw, 14px) clamp(10px, 1.2vw, 14px);
+}
+
+.case-card__body > * {
+  margin: 0;
+}
+
+.case-card__body > * + * {
+  margin-top: 8px;
+}
+
+.case-card__body > .case-card__actions {
+  margin-top: auto;
+}
+
+.case-card__body > .card-expand__body {
+  margin: 0;
+}
+
+.case-card__cover {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
 .case-card h2,
 .case-card h3 {
   padding: clamp(16px, 2vw, 22px) clamp(12px, 1.6vw, 16px) 0;
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(19px, 1.6vw, 23px);
-  font-weight: 800;
-  line-height: 1.12;
+  font-weight: 700;
+  line-height: 1.14;
   letter-spacing: -.02em;
-  color: #0A0A0A;
+  color: var(--text);
   text-wrap: balance;
+}
+
+/* Body wrapper (kept for older markup): no double padding on the title. */
+
+.case-card__body h2,
+.case-card__body h3 {
+  padding: 0;
 }
 
 .case-card p,
 .case-card .small {
-  padding: 8px clamp(12px, 1.6vw, 16px) 0;
+  padding: 0;
   margin: 0;
-  color: #4A4A4A;
+  color: var(--muted);
   font-size: 15px;
   line-height: 1.5;
 }
 
 .case-card .small {
-  margin-top: auto;
-  padding-bottom: clamp(12px, 1.6vw, 16px);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: #646464;
+  color: var(--muted);
 }
 
-.case-card > p:last-child,
-.case-card > h2:last-child,
-.case-card > h3:last-child {
-  padding-bottom: clamp(12px, 1.6vw, 16px);
+/* Direct children (current markup): text rhythm under the cover link. */
+
+.case-card > p,
+.case-card > .small {
+  padding: 8px clamp(12px, 1.6vw, 16px) 0;
 }
 
-/* ==========================================================================
-   6. Request card — dark glass "private cases under NDA"
-   ========================================================================== */
+.case-card > .small {
+  margin-top: 0;
+}
+
+.case-card__index {
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--accent-2);
+}
+
+.case-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.case-card__actions .btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+/* Tilt — pointer-driven rotation. motion.js writes --tilt-x (rotateY) and
+   --tilt-y (rotateX) in degrees; the spotlight follows --mx / --my in %.
+   Transform and opacity only, never geometry. --------------------------- */
+
+.card-tilt {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --tilt-z: 0px;
+  --mx: 50%;
+  --my: 45%;
+  transform: perspective(1000px)
+             rotateX(var(--tilt-y))
+             rotateY(var(--tilt-x))
+             translate3d(0, 0, var(--tilt-z));
+  transform-style: preserve-3d;
+  transition: transform var(--dur-1) linear,
+              border-color var(--dur-2) var(--ease-out),
+              box-shadow var(--dur-3) var(--ease-out);
+}
+
+.card-tilt.is-tilting {
+  will-change: transform;
+}
+
+.card-tilt:hover {
+  --tilt-z: 4px;
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+.card-tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx) var(--my),
+    rgba(217, 195, 171, .12) 0%,
+    rgba(217, 195, 171, 0) 70%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.card-tilt:hover::after {
+  opacity: 1;
+}
+
+/* Expand — the sheet becomes the open card's own content. The covered layers
+   leave the flow entirely (visibility:hidden still reserved their height —
+   that reserved bottom was the empty block under the facts). The case title
+   stays as the sheet's heading, so the open card reads as a complete, compact
+   card: title → facts → actions, with no dead space and no scroll frame. --- */
+
+.card-expand {
+  position: relative;
+}
+
+/* While one card is open the row must not stretch it to the sibling's height.
+   Closing removes the class and both cards are equal again. ------------- */
+
+.case-grid.has-open {
+  align-items: start;
+}
+
+.card-expand.is-open {
+  align-self: start; /* same result when the grid class is missing */
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+.card-expand.is-open .case-card__media,
+.card-expand.is-open > p,
+.card-expand.is-open > .small,
+.card-expand.is-open .case-card__actions {
+  display: none;
+}
+
+.card-expand__body {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: clamp(18px, 2.2vw, 24px);
+  border-radius: inherit;
+  background: var(--surface);
+  color: var(--text);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(0, 10px, 0);
+  transition: opacity var(--dur-2) var(--ease-out),
+              transform var(--dur-3) var(--spring),
+              visibility 0s linear var(--dur-2);
+}
+
+.card-expand__body.is-open,
+.card-expand.is-open .card-expand__body,
+.card-expand[aria-expanded="true"] .card-expand__body {
+  /* In flow: the card height = its own content, so nothing is left blank. */
+  position: relative;
+  inset: auto;
+  z-index: 3;
+  overflow: visible;
+  padding: clamp(8px, 1.2vw, 12px) clamp(12px, 1.6vw, 16px) clamp(4px, .8vw, 6px);
+  border-radius: 0;
+  background: none;
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  transition-delay: 0s;
+}
+
+.card-expand__body p {
+  margin: 0;
+  padding: 0;
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.card-expand__body p + p {
+  margin-top: 10px;
+}
+
+.card-expand__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.card-expand__actions .btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+/* In the open sheet the action row is a footer: it follows the facts with a
+   hairline instead of being pushed to the card bottom. ------------------- */
+
+.card-expand.is-open .card-expand__actions,
+.card-expand__body.is-open .card-expand__actions,
+.card-expand[aria-expanded="true"] .card-expand__actions {
+  margin-top: clamp(14px, 1.8vw, 18px);
+  padding-top: clamp(12px, 1.6vw, 16px);
+  border-top: 1px solid var(--line);
+}
+
+/* Facts list inside the expanded card. */
+
+.case-card__facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case-card__facts li {
+  position: relative;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.case-card__facts li::before {
+  content: "";
+  position: absolute;
+  top: .55em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Toggle label swaps by state; display swap only, no layout animation. */
+
+.card-expand__less {
+  display: none;
+}
+
+.card-expand.is-open .card-expand__less,
+.card-expand__toggle[aria-expanded="true"] .card-expand__less {
+  display: inline;
+}
+
+.card-expand.is-open .card-expand__more,
+.card-expand__toggle[aria-expanded="true"] .card-expand__more {
+  display: none;
+}
+
+/* Request card — dark glass with an NDA label, no orange tint ----------- */
 
 .request-card {
   position: relative;
@@ -849,14 +1627,14 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   gap: var(--space-2);
   overflow: hidden;
   padding: clamp(24px, 3.6vw, 44px);
-  border: 1px solid rgba(255, 255, 255, .14);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   background:
-    radial-gradient(120% 140% at 88% -10%, rgba(232, 80, 2, .28) 0%, rgba(232, 80, 2, 0) 58%),
-    linear-gradient(155deg, rgba(23, 21, 19, .92) 0%, rgba(0, 0, 0, .94) 100%);
-  color: #FFFFFF;
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
-  backdrop-filter: blur(22px) saturate(140%);
+    radial-gradient(120% 140% at 88% -10%, rgba(217, 195, 171, .10) 0%, rgba(217, 195, 171, 0) 58%),
+    linear-gradient(155deg, rgba(20, 23, 25, .94) 0%, rgba(8, 9, 10, .96) 100%);
+  color: var(--text);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
   box-shadow: 0 30px 70px -40px rgba(0, 0, 0, .85);
 }
 
@@ -867,7 +1645,7 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   pointer-events: none;
   background-image: var(--grain-url);
   background-size: 180px 180px;
-  opacity: .22;
+  opacity: .18;
   mix-blend-mode: overlay;
 }
 
@@ -876,71 +1654,45 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   z-index: 1;
 }
 
-/* 11–12px caps on a chip that is itself orange-tinted: #F16001 composed to
-   4.26:1 against rgba(241,96,1,.08) over the card gradient. #FF8A3D holds
-   5.9:1 there (5.1:1 in the glow corner) with the same hue family. */
-.request-card .label,
-.request-card .eyebrow {
-  color: #FF8A3D;
-}
-
-.request-card .label {
-  border-color: rgba(241, 96, 1, .45);
-  background: rgba(241, 96, 1, .08);
-}
-
-.request-card .eyebrow::before {
-  background: #F16001;
-  box-shadow: 0 0 10px 1px rgba(241, 96, 1, .55);
-}
-
 .request-card h2,
 .request-card h3 {
   max-width: 22ch;
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(24px, 2.6vw, 40px);
-  font-weight: 800;
+  font-weight: 700;
   line-height: .98;
   letter-spacing: -.03em;
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--text);
 }
 
 .request-card p {
   max-width: 52ch;
   margin: 0;
-  color: #A7A7A7;
+  color: var(--muted);
   font-size: 15px;
   line-height: 1.55;
 }
 
 .request-card .small {
-  color: #A7A7A7;
+  color: var(--muted);
   font-size: 11px;
   letter-spacing: .12em;
   text-transform: uppercase;
 }
 
-.request-card .btn,
-.request-card .btn--ghost {
+.request-card .btn {
   justify-self: start;
   margin-top: var(--space-1);
-  border-color: rgba(255, 255, 255, .3);
-  color: #FFFFFF;
-}
-
-.request-card .btn--primary {
-  border-color: transparent;
-  color: var(--on-accent);
 }
 
 /* ==========================================================================
-   7. Case page — dark hero, light reading blocks
+   6. Case page — hero, meta, paper reading blocks, gallery, steps, tags
    ========================================================================== */
 
 .case-hero {
-  padding-block: clamp(60px, 8vw, 120px) clamp(64px, 8vw, 112px);
+  padding-block: clamp(60px, 8vw, 116px) clamp(56px, 7vw, 96px);
 }
 
 .case-hero h1 {
@@ -952,10 +1704,10 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 0;
-  margin-top: clamp(24px, 3vw, 36px);
+  margin-top: clamp(24px, 3vw, 34px);
   font-family: var(--font-sans);
   font-size: var(--fs-small);
-  color: #A7A7A7;
+  color: var(--muted);
 }
 
 .case-meta > * {
@@ -968,7 +1720,7 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 .case-meta > * + * {
   padding-left: 20px;
   margin-left: 20px;
-  border-left: 1px solid rgba(255, 255, 255, .14);
+  border-left: 1px solid var(--line-strong);
 }
 
 .case-meta > * + *::before {
@@ -978,76 +1730,74 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 .case-meta dt,
 .case-meta .small {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: .16em;
   text-transform: uppercase;
-  color: #8A8A8A;
+  color: var(--muted);
 }
 
 .case-meta dd {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--text);
 }
 
 .case-meta strong,
 .case-meta b {
-  color: #FFFFFF;
+  color: var(--text);
   font-weight: 700;
 }
 
 .case-block {
-  padding-block: clamp(40px, 6vw, 88px);
+  padding-block: clamp(40px, 6vw, 84px);
 }
 
 .case-block + .case-block {
-  border-top: 1px solid var(--l-line);
+  border-top: 1px solid var(--line);
 }
 
 .case-block h2 {
   max-width: 22ch;
-  margin: 0 0 clamp(18px, 2.4vw, 28px);
+  margin: 0 0 clamp(18px, 2.4vw, 26px);
   font-family: var(--font-display);
   font-size: clamp(22px, 2.8vw, 40px);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -.03em;
   text-transform: uppercase;
-  color: #0A0A0A;
+  color: var(--text);
 }
 
 .case-block h3 {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -.015em;
-  color: #0A0A0A;
+  color: var(--text);
 }
 
 .case-block > p,
 .case-block p,
 .case-block li {
   max-width: 66ch;
-  color: #333333;
+  color: var(--text);
 }
 
 .case-block a:not(.btn) {
-  color: #0A0A0A;
-  text-decoration-color: rgba(232, 80, 2, .5);
+  color: var(--text);
+  text-decoration-color: var(--accent);
 }
 
 .case-block a:not(.btn):hover {
-  color: var(--accent-ink);
+  color: var(--accent);
   text-decoration-color: currentColor;
 }
 
 .case-block :where(ul, ol) :where(strong, b) {
-  color: #0A0A0A;
+  color: var(--text);
 }
 
-/* ==========================================================================
-   8. Gallery
-   ========================================================================== */
+/* Gallery ---------------------------------------------------------------- */
 
 .gallery {
   display: grid;
@@ -1072,38 +1822,36 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 
 .gallery img {
   width: 100%;
-  border: 1px solid var(--l-line);
-  border-radius: calc(var(--radius) - 4px);
-  background: #FFFFFF;
-  box-shadow: 0 18px 40px -30px rgba(20, 14, 9, .5);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) - 6px);
+  background: var(--surface);
+  box-shadow: 0 18px 40px -30px rgba(20, 14, 9, .30);
 }
 
 .gallery figcaption {
   font-size: 13px;
   line-height: 1.5;
-  color: #646464;
+  color: var(--muted);
 }
 
-/* ==========================================================================
-   9. Steps — numbered, orange ticks, hairline rhythm
-   ========================================================================== */
+/* Steps — counters in sand, hairline rhythm ------------------------------ */
 
 .steps {
   counter-reset: step;
   margin-block: clamp(24px, 3vw, 40px);
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--l-line);
+  border-top: 1px solid var(--line);
 }
 
 .step {
   counter-increment: step;
   display: grid;
-  grid-template-columns: 3.25rem minmax(0, 1fr);
+  grid-template-columns: 3rem minmax(0, 1fr);
   gap: var(--space-2);
   margin: 0;
   padding-block: clamp(18px, 2.2vw, 26px);
-  border-bottom: 1px solid var(--l-line);
+  border-bottom: 1px solid var(--line);
 }
 
 .step::before {
@@ -1112,11 +1860,11 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   grid-row: 1;
   padding-top: 3px;
   font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: .08em;
-  color: #C10801;
+  color: var(--accent);
 }
 
 .step > * {
@@ -1132,12 +1880,10 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 .step p {
   margin: 0;
   max-width: 62ch;
-  color: #4A4A4A;
+  color: var(--muted);
 }
 
-/* ==========================================================================
-   10. Tags — orange pills
-   ========================================================================== */
+/* Tags — outline pills, no fills ----------------------------------------- */
 
 .tags {
   display: flex;
@@ -1154,22 +1900,22 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   display: inline-flex;
   align-items: center;
   margin: 0;
-  padding: 7px 14px;
-  border: 1px solid rgba(232, 80, 2, .32);
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
-  background: rgba(232, 80, 2, .08);
+  background: transparent;
   font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 650;
   line-height: 1.3;
-  letter-spacing: .08em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--accent-ink);
+  color: var(--muted);
   white-space: nowrap;
 }
 
 /* ==========================================================================
-   11. CTA band — dark closing stage with glow
+   7. Closing band, sticky CTA, footer
    ========================================================================== */
 
 .cta-band,
@@ -1178,56 +1924,19 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   isolation: isolate;
   overflow: clip;
   margin: 0;
-  padding-block: clamp(64px, 9vw, 128px);
-  background-color: #000000;
-  background-image: var(--grad-4);
-  border-top: 1px solid rgba(255, 255, 255, .08);
-  color: #FFFFFF;
-
-  --text: #FFFFFF;
-  --muted: #A7A7A7;
-  --line: rgba(255, 255, 255, .12);
-  --line-strong: rgba(255, 255, 255, .3);
-  --accent-ink: #F16001;
-}
-
-.cta-band::before,
-.case-cta::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -42%;
-  z-index: 0;
-  width: min(1100px, 130vw);
-  aspect-ratio: 2.4 / 1;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background:
-    radial-gradient(58% 100% at 50% 50%,
-      rgba(241, 96, 1, .8) 0%,
-      rgba(193, 8, 1, .45) 44%,
-      rgba(193, 8, 1, 0) 72%);
-  filter: blur(40px);
-  pointer-events: none;
-}
-
-.cta-band::after,
-.case-cta::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background-image: var(--grain-url);
-  background-size: 180px 180px;
-  opacity: var(--grain-opacity);
-  mix-blend-mode: overlay;
+  padding-block: clamp(72px, 9vw, 132px);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(90% 120% at 50% 0%, rgba(217, 195, 171, .10) 0%, rgba(217, 195, 171, 0) 60%),
+    var(--grad-4);
+  border-top: 1px solid var(--line);
+  color: var(--text);
 }
 
 .cta-band > .wrap,
 .case-cta > .wrap {
   position: relative;
-  z-index: 2;
+  z-index: 1;
 }
 
 .cta-band h2,
@@ -1236,18 +1945,18 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--fs-h2);
-  font-weight: 800;
-  line-height: .96;
+  font-weight: 700;
+  line-height: .98;
   letter-spacing: var(--tracking-display);
   text-transform: uppercase;
-  color: #FFFFFF;
+  color: var(--text);
 }
 
 .cta-band p,
 .case-cta p {
   max-width: 56ch;
   margin-top: var(--space-2);
-  color: #A7A7A7;
+  color: var(--muted);
 }
 
 .case-cta .hero__actions {
@@ -1259,32 +1968,88 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 .case-cta a:not(.btn) {
-  color: #FFFFFF;
+  color: var(--text);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: .18em;
-  text-decoration-color: rgba(255, 255, 255, .3);
+  text-decoration-color: var(--line-strong);
 }
 
 .case-cta a:not(.btn):hover {
-  color: #F16001;
+  color: var(--accent);
   text-decoration-color: currentColor;
 }
 
-/* ==========================================================================
-   12. Footer
-   ========================================================================== */
+/* Sticky contact CTA — floating glass pill parked in the bottom-right corner,
+   so it never sits on top of a heading in the middle of the page. motion.js
+   reveals it after the first viewport and hides it again while the contact
+   band is on screen (.is-hidden). --------------------------------------- */
+
+.sticky-cta {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  left: auto;
+  z-index: 70;
+  display: flex;
+  max-width: calc(100vw - 48px);
+  padding: 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  background: var(--header-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(0, calc(100% + 24px), 0);
+  transition: opacity var(--dur-2) var(--ease-out),
+              transform var(--dur-3) var(--spring),
+              visibility 0s linear var(--dur-3);
+}
+
+.sticky-cta.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  transition-delay: 0s;
+}
+
+/* Yield state: the contact band owns that corner. Applied on top of
+   .is-visible, so the pill also leaves the tab order (visibility + no
+   pointer events). Softer and quicker than the entrance on purpose. ------ */
+
+.sticky-cta.is-hidden,
+.sticky-cta.is-visible.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 10px, 0);
+  transition: opacity var(--dur-2) var(--ease-out),
+              transform var(--dur-2) var(--ease-out),
+              visibility 0s linear var(--dur-2);
+}
+
+.sticky-cta .btn {
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.sticky-cta .btn:focus-visible {
+  outline-offset: 2px;
+}
+
+/* Footer — dark closing strip in both themes ----------------------------- */
 
 .site-footer {
   padding-block: clamp(28px, 3.4vw, 44px);
-  background: #000000;
-  border-top: 1px solid rgba(255, 255, 255, .1);
-  color: #A7A7A7;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
   font-size: var(--fs-small);
-
-  --text: #FFFFFF;
-  --muted: #A7A7A7;
-  --line: rgba(255, 255, 255, .12);
 }
 
 .site-footer .wrap {
@@ -1300,19 +2065,26 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   font-size: 11px;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: #A7A7A7;
+  color: var(--muted);
 }
 
 .site-footer a {
-  color: #FFFFFF;
+  color: var(--text);
 }
 
 .site-footer a:hover {
-  color: #F16001;
+  color: var(--accent);
+}
+
+/* Case pages have no #contact section, so the floating CTA never hides
+   there — reserve room for it above the footer baseline. ---------------- */
+
+body[data-page^="case"] .site-footer {
+  padding-bottom: calc(clamp(28px, 3.4vw, 44px) + 88px);
 }
 
 /* ==========================================================================
-   13. Responsive — mobile-first safety, no horizontal scroll from 360px
+   8. Responsive
    ========================================================================== */
 
 @media (max-width: 960px) {
@@ -1320,7 +2092,6 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
     grid-template-columns: 1fr 1fr;
   }
 
-  /* Equal tracks here, so the ratio gives both wells the same height again. */
   .case-grid > .case-card:nth-child(-n + 2) img {
     height: auto;
     aspect-ratio: 16 / 10;
@@ -1337,49 +2108,19 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
 }
 
 @media (max-width: 860px) {
-  /* Header wraps to two rows here: logo + controls, then the nav.
-     Keep the token truthful so [id] scroll-margin and min-height agree. */
-  :root {
-    --header-h: 104px;
+  .site-header {
+    padding: 8px 10px 0;
   }
 
   .site-header__inner {
-    justify-content: flex-start;
-    gap: 8px;
-  }
-
-  .logo {
-    margin-right: auto;
-  }
-
-  .site-header .nav {
-    margin-inline: 0;
-  }
-
-  .site-header .nav {
-    order: 4;
-    width: 100%;
-    gap: var(--space-3);
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-block: 4px 2px;
-  }
-
-  .site-header .nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .site-header .nav a {
-    font-size: 11px;
-    padding-block: 6px;
+    border-radius: 20px;
+    padding: 6px 8px 6px 14px;
   }
 
   .case-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Stacked cards: no alignment to defend, so a plain 16:9 banner reads better
-     than a fixed-height strip. */
   .case-grid > .case-card:nth-child(-n + 2) img {
     height: auto;
     aspect-ratio: 16 / 9;
@@ -1391,16 +2132,24 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
     max-height: none;
   }
 
+  /* One card per row: the cover stays when the card opens, the sheet is
+     appended under it and the card grows downward by the sheet's own height
+     (accordion), so the section no longer shrinks and the open card never
+     reads as an empty box next to a sibling that still has its cover.
+     Description / meta / the closed-state action row stay out of the flow —
+     the sheet repeats both links, so they would be duplicates. Desktop
+     (>860px) keeps the compact coverless sheet. ------------------------- */
+
+  .card-expand.is-open .case-card__media {
+    display: block;
+  }
+
   .case-meta > * + * {
     padding-left: 14px;
     margin-left: 14px;
   }
 }
 
-/* Trust row on phones: a separator that lands at a line start ("· маркетплейсы")
-   is worse than no separator at all, and CSS cannot detect line starts without
-   JS. Below 720px the dots are dropped and the gap carries the rhythm —
-   the row still fits on one line down to ~700px, so the dots never dangle. */
 @media (max-width: 720px) {
   .hero__meta {
     gap: 6px 16px;
@@ -1411,35 +2160,45 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
     display: none;
     content: none;
   }
+
+  /* Narrow screens: the pill stays a pill — never a full-width bar over the
+     text it is supposed to stay clear of. --------------------------------- */
+
+  .sticky-cta {
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    max-width: min(64vw, 240px);
+    padding: 5px;
+  }
+
+  .sticky-cta .btn {
+    min-height: 40px;
+    max-width: 100%;
+    padding: 0 14px;
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 640px) {
   .hero,
   .hero--dark,
   .case-hero {
-    padding-block: clamp(44px, 12vw, 72px) clamp(64px, 18vw, 104px);
-  }
-
-  .hero__glow,
-  .hero::before,
-  .case-hero::before {
-    width: 190vw;
-    bottom: -10%;
-    filter: blur(20px) saturate(115%);
+    padding-block: clamp(44px, 11vw, 72px) clamp(56px, 14vw, 96px);
   }
 
   .hero__actions {
-    gap: 10px;
+    gap: 8px;
   }
 
   .btn {
-    min-height: 46px;
-    padding: 0 20px;
-    font-size: 11px;
+    min-height: 44px;
+    padding: 0 18px;
+    font-size: 13px;
   }
 
   .section,
-  .section--light {
+  .section--light,
+  .case-block {
     padding-block: clamp(40px, 10vw, 64px);
   }
 
@@ -1467,30 +2226,38 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
   .case-block h2 {
     max-width: none;
   }
+
+  .card-expand__body {
+    border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+  }
 }
 
 @media (max-width: 420px) {
+  .site-header__inner {
+    gap: 6px;
+    padding-left: 12px;
+  }
+
   .logo {
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: .08em;
   }
 
   .theme-toggle {
-    width: 38px;
-    min-width: 38px;
-    min-height: 38px;
+    width: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
   .lang-toggle {
-    min-height: 38px;
-    padding: 0 10px;
+    min-height: 34px;
+    padding: 0 9px;
   }
 
   .header-cta {
-    min-height: 38px;
+    min-height: 34px;
     padding: 0 12px;
-    font-size: 10px;
-    letter-spacing: .08em;
+    font-size: 11px;
   }
 
   .hero__actions {
@@ -1498,19 +2265,20 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
     align-items: stretch;
   }
 
-  .hero__actions .btn {
+  .hero__actions .btn,
+  .hero__actions .magnetic,
+  .hero__actions .hold-btn {
     width: 100%;
   }
 
-  .request-card .btn,
-  .request-card .btn--ghost {
+  .request-card .btn {
     justify-self: stretch;
     width: 100%;
   }
 }
 
 /* ==========================================================================
-   14. Motion preferences + print
+   9. Reduced motion + print
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1518,42 +2286,204 @@ html[data-theme="light"] .theme-toggle [data-theme-icon="moon"] {
     scroll-behavior: auto;
   }
 
-  .btn,
-  .case-card,
-  .nav a,
-  .nav a::after,
-  .lang-toggle,
-  .theme-toggle,
-  .header-cta,
-  .logo::before,
-  .site-header {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+    transition-duration: .001ms;
+    transition-delay: 0s;
   }
 
+  .site-header,
+  .site-header__inner,
+  .logo,
+  .logo::before,
+  .nav a,
+  .nav a::after,
+  .nav-pill,
+  .morph-island__pill,
+  .morph-island__icon,
+  .morph-island__chev,
+  .morph-island__panel,
+  .theme-toggle,
+  .lang-toggle,
+  .header-cta,
+  .btn,
+  .hold-btn,
+  .hold-btn__fill,
+  .hold-btn__ring,
+  .hold-btn__ring::before,
+  .magnetic,
+  .card,
+  .case-card,
+  .card-tilt,
+  .card-expand,
+  .card-expand::before,
+  .card-expand__body,
+  .reveal,
+  .sticky-cta,
+  .cursor-glow,
+  .marquee__track,
+  .stream__cursor {
+    transition: none;
+    animation: none;
+  }
+
+  .word-roll__word,
+  .word-roll__word > * {
+    animation: none;
+  }
+
+  .reveal,
+  html.js-motion .reveal {
+    opacity: 1;
+    translate: none;
+  }
+
+  .card-tilt,
+  .magnetic,
   .btn:hover,
   .case-card:hover,
+  .case-card:focus-visible,
   .header-cta:hover {
     transform: none;
+  }
+
+  .card-tilt:hover {
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+    --tilt-z: 0px;
+  }
+
+  .morph-island__panel,
+  .sticky-cta,
+  .card-expand__body {
+    transform: none;
+  }
+
+  .morph-island__panel.is-open,
+  .morph-island.is-open .morph-island__panel,
+  .morph-island.is-open [data-morph-panel] {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+
+  .sticky-cta.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .sticky-cta.is-visible.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: none;
+  }
+
+  .card-expand__body.is-open,
+  .card-expand.is-open .card-expand__body,
+  .card-expand[aria-expanded="true"] .card-expand__body {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .marquee__track {
+    animation: none;
+  }
+
+  .stream__cursor {
+    animation: none;
+    opacity: .8;
+  }
+
+  .cursor-glow {
+    display: none;
+  }
+
+  .card-tilt::after,
+  .card-expand::before {
+    transition: none;
   }
 }
 
 @media print {
   .site-header,
-  .cta-band::before,
-  .case-cta::before,
+  .sticky-cta,
+  .cursor-glow,
+  .marquee,
+  .grain::after,
   .hero::before,
-  .hero::after,
-  .case-hero::after,
-  .hero__glow {
-    display: none !important;
+  .hero__glow,
+  .cta-band::after,
+  .case-cta::after,
+  .request-card::after {
+    display: none;
   }
 
-  body,
+  html,
+  body {
+    background: #FFFFFF;
+    color: #000000;
+  }
+
   .hero,
+  .hero--dark,
   .case-hero,
   .cta-band,
-  .case-cta {
-    background: #FFFFFF !important;
-    color: #000000 !important;
+  .case-cta,
+  .site-footer,
+  .section--light,
+  .case-block,
+  .request-card,
+  .card,
+  .case-card {
+    background: #FFFFFF;
+    color: #000000;
+    box-shadow: none;
+  }
+
+  .hero__title,
+  .hero h1,
+  .case-hero h1,
+  .cta-band h2,
+  .case-cta h2,
+  .site-footer p,
+  .case-card h2,
+  .case-card h3,
+  .request-card h2,
+  .request-card h3,
+  .request-card p,
+  .case-block h2,
+  .case-block h3,
+  .case-block p,
+  .case-block li,
+  .step p,
+  .case-meta dd {
+    color: #000000;
+  }
+
+  .hero .lead,
+  .hero__meta,
+  .case-meta,
+  .case-meta dt,
+  .cta-band p,
+  .case-cta p,
+  .lead,
+  .muted,
+  .small,
+  .gallery figcaption {
+    color: #333333;
+  }
+
+  .btn,
+  .header-cta {
+    background: transparent;
+    border-color: #000000;
+    color: #000000;
+    box-shadow: none;
   }
 }

@@ -10,6 +10,9 @@
   var DEFAULT_THEME = 'dark';
   var LANGS = ['ru', 'en'];
   var THEMES = ['dark', 'light'];
+  var prefersDark = window.matchMedia
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : null;
 
   /* --- storage ---------------------------------------------------------- */
 
@@ -87,6 +90,20 @@
 
     /* подпись и aria-label переключателя темы тоже локализованы */
     renderThemeToggle(currentTheme(), lang);
+
+    announce('langchange', { lang: lang });
+  }
+
+  /* Событие для motion.js: после смены языка тексты другие, поэтому
+     заголовок-морф и стримы нужно пересобрать. */
+  function announce(name, detail) {
+    var event;
+    try {
+      event = new CustomEvent(name, { detail: detail });
+    } catch (e) {
+      return;
+    }
+    document.dispatchEvent(event);
   }
 
   /* --- theme ------------------------------------------------------------ */
@@ -111,6 +128,12 @@
     var next = theme === 'light' ? 'light' : DEFAULT_THEME;
     document.documentElement.setAttribute('data-theme', next);
     renderThemeToggle(next, currentLang());
+    announce('themechange', { theme: next });
+  }
+
+  /* Тема по умолчанию: сохранённая → системная → тёмная. */
+  function storedTheme() {
+    return readStored(THEME_KEY, THEMES) || (prefersDark && !prefersDark.matches ? 'light' : DEFAULT_THEME);
   }
 
   /* --- init ------------------------------------------------------------- */
@@ -119,7 +142,7 @@
     var lang = readStored(LANG_KEY, LANGS) || DEFAULT_LANG;
 
     /* тема применяется до языка, чтобы aria-label сразу получил перевод */
-    applyTheme(readStored(THEME_KEY, THEMES) || DEFAULT_THEME);
+    applyTheme(storedTheme());
     applyLang(lang);
 
     var langToggle = document.getElementById('langToggle');
@@ -137,6 +160,15 @@
         var next = currentTheme() === 'light' ? 'dark' : 'light';
         applyTheme(next);
         store(THEME_KEY, next);
+      });
+    }
+
+    /* Пока посетитель не выбрал тему сам, следуем системной настройке. */
+    if (prefersDark && prefersDark.addEventListener) {
+      prefersDark.addEventListener('change', function () {
+        if (!readStored(THEME_KEY, THEMES)) {
+          applyTheme(prefersDark.matches ? 'dark' : 'light');
+        }
       });
     }
   }

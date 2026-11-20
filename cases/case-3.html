@@ -6,7 +6,8 @@
   <title data-i18n="page.title">Кейс в подготовке · Boris Topalov</title>
   <meta name="description" content="Третий кейс портфолио находится в подготовке: материалы собираются.">
   <meta name="robots" content="noindex">
-  <script>try{var t=localStorage.getItem('portfolio.theme');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark')}catch(e){}</script>
+  <!-- тема применяется до первой отрисовки: сохранённая → системная → тёмная -->
+  <script>try{var s=localStorage.getItem('portfolio.theme');var d=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;var t=s==='light'||s==='dark'?s:(d?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="preload" href="../assets/fonts/Manrope-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="../assets/css/tokens.css">
   <link rel="stylesheet" href="../assets/css/base.css">
@@ -17,18 +18,30 @@
   <header class="site-header">
     <div class="wrap site-header__inner">
       <a class="logo" href="../index.html">Boris Topalov</a>
-      <nav class="nav" aria-label="Основная навигация">
-        <a href="../index.html#cases" data-i18n="nav.cases">Кейсы</a>
-        <a href="../index.html#about" data-i18n="nav.about">Обо мне</a>
-        <a href="../index.html#contact" data-i18n="nav.contact">Контакты</a>
-      </nav>
+
+      <!-- Морф-остров: компактная пилюля раскрывается в панель навигации (.is-open) -->
+      <div class="morph-island" data-morph-island>
+        <span class="morph-island__pill" aria-hidden="true"></span>
+        <button class="nav-pill morph-island__toggle" type="button" aria-expanded="false" aria-controls="navPanel" data-morph-toggle>
+          <span data-i18n="nav.open">Меню</span>
+          <span class="morph-island__chev" aria-hidden="true"></span>
+        </button>
+        <div class="morph-island__panel" id="navPanel" data-morph-panel inert>
+          <nav class="nav" aria-label="Основная навигация">
+            <a href="../index.html#cases" data-i18n="nav.cases">Кейсы</a>
+            <a href="../index.html#about" data-i18n="nav.about">Обо мне</a>
+            <a href="../index.html#contact" data-i18n="nav.contact">Контакты</a>
+          </nav>
+          <!-- TODO: заменить USERNAME на реальный ник в Telegram -->
+          <a class="header-cta" href="https://t.me/USERNAME" target="_blank" rel="noopener" data-i18n="header.cta">Написать</a>
+        </div>
+      </div>
+
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="Включить светлую тему">
         <svg data-theme-icon="sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.2M12 19.4v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.4 12h2.2M19.4 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>
         <svg data-theme-icon="moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
       </button>
       <button class="lang-toggle" id="langToggle" type="button" lang="en" aria-label="Switch to English">EN</button>
-      <!-- TODO: заменить USERNAME на реальный ник в Telegram -->
-      <a class="header-cta" href="https://t.me/USERNAME" target="_blank" rel="noopener" data-i18n="header.cta">Написать</a>
     </div>
   </header>
 
@@ -38,7 +51,7 @@
     <section class="case-hero">
       <div class="hero__glow" aria-hidden="true"></div>
       <div class="wrap">
-        <p class="eyebrow" data-i18n="case.c3.eyebrow">Кейс в подготовке</p>
+        <p class="eyebrow scramble" data-i18n="case.c3.eyebrow">Кейс в подготовке</p>
         <h1 data-i18n="case.c3.title">Кейс в подготовке</h1>
         <p class="lead" data-i18n="case.c3.lead">Материалы ещё собираются: здесь появятся контекст, процесс и результат. Раздел обновится, когда кейс будет готов.</p>
         <dl class="case-meta">
@@ -58,7 +71,7 @@
       </div>
     </section>
 
-    <section class="case-block">
+    <section class="case-block reveal">
       <div class="wrap">
         <h2 data-i18n="case.c3.contextTitle">Контекст</h2>
         <p class="muted" data-i18n="case.c3.contextP1">Заглушка: описание задачи, продукта и ограничений появится позже.</p>
@@ -66,7 +79,7 @@
       </div>
     </section>
 
-    <section class="case-block">
+    <section class="case-block reveal">
       <div class="wrap">
         <h2 data-i18n="case.c3.roleTitle">Моя роль</h2>
         <p class="muted" data-i18n="case.c3.roleP1">Заглушка: зона ответственности и состав работ будут описаны вместе с материалами.</p>
@@ -78,7 +91,7 @@
       </div>
     </section>
 
-    <section class="case-block">
+    <section class="case-block reveal">
       <div class="wrap">
         <h2 data-i18n="case.c3.doneTitle">Что сделано</h2>
         <p class="muted" data-i18n="case.c3.doneP1">Заглушка: перечень работ и артефактов появится вместе с кейсом.</p>
@@ -92,7 +105,7 @@
       </div>
     </section>
 
-    <section class="case-block">
+    <section class="case-block reveal">
       <div class="wrap">
         <h2 data-i18n="case.c3.resultTitle">Результат</h2>
         <ul>
@@ -102,15 +115,15 @@
       </div>
     </section>
 
-    <section class="cta-band">
+    <section class="cta-band case-cta grain">
       <div class="wrap">
         <h2 data-i18n="case.c3.ctaTitle">Пока кейс готовится</h2>
-        <p data-i18n="case.c3.ctaText">Посмотрите два готовых кейса или напишите — расскажу о работе подробнее.</p>
+        <p><span class="stream" data-stream data-i18n="case.c3.ctaText">Посмотрите два готовых кейса или напишите — расскажу о работе подробнее.</span></p>
         <div class="hero__actions">
           <!-- TODO: заменить USERNAME на реальный ник в Telegram -->
-          <a class="btn btn--primary" href="https://t.me/USERNAME" target="_blank" rel="noopener" data-i18n="case.c3.ctaTelegram">Написать в Telegram</a>
+          <a class="btn btn--primary magnetic" href="https://t.me/USERNAME" target="_blank" rel="noopener" data-i18n="case.c3.ctaTelegram">Написать в Telegram</a>
           <!-- TODO: заменить EMAIL@EXAMPLE.COM на реальный адрес почты -->
-          <a class="btn btn--ghost" href="mailto:EMAIL@EXAMPLE.COM" data-i18n="case.c3.ctaEmail">Написать на email</a>
+          <a class="btn btn--ghost magnetic" href="mailto:EMAIL@EXAMPLE.COM" data-i18n="case.c3.ctaEmail">Написать на email</a>
         </div>
         <p><a class="small" href="../index.html" data-i18n="case.c3.back">← Все кейсы</a></p>
       </div>
@@ -124,7 +137,14 @@
     </div>
   </footer>
 
+  <!-- Плавающая кнопка связи: появляется после первого экрана -->
+  <div class="sticky-cta" data-sticky-cta>
+    <!-- TODO: заменить USERNAME на реальный ник в Telegram -->
+    <a class="btn btn--primary" href="https://t.me/USERNAME" target="_blank" rel="noopener" data-i18n="header.cta">Написать</a>
+  </div>
+
   <script src="../assets/js/i18n.js"></script>
   <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/motion.js"></script>
 </body>
 </html>

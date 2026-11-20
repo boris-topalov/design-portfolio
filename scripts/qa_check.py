@@ -18,12 +18,17 @@ Checks
     (resolved relative to the folder of the page; mailto:, tel:, javascript:,
     data:, http(s):, protocol-relative // and pure fragments are skipped)
 (c) every <img> has a non-empty alt attribute
-(d) no forbidden JS constructs (fetch( / import / export) — the site has to
-    work when opened directly over file://
+(d) no forbidden JS constructs (fetch( / import / export / require() — the
+    site has to work when opened directly over file://
 (e) index.html contains exactly 2 .case-card elements and exactly 1
-    .request-card with a Telegram link, and every link inside them resolves
+    .request-card with a Telegram link; every link inside them resolves, each
+    case card opens a case study under cases/, the two cards point at different
+    studies, and every [data-expand-toggle] carries aria-expanded + an
+    aria-controls that matches an id on the page
 (f) every HTML page has data-theme on <html>, a #themeToggle control, a
-    .header-cta control and a .hero__title / .case-hero heading block
+    .header-cta control, a .hero__title / .case-hero heading block, a
+    <nav class="nav"> with aria-label, the motion.js bundle, and a morph
+    island toggle whose aria-expanded/aria-controls are complete
 (g) CSS defines a [data-theme="dark"] block and every token of the contract
     (--accent, --grad-1…--grad-4, --fs-display, --font-display)
 (h) every @font-face points at an existing local font file under assets/fonts
@@ -69,10 +74,12 @@ REQUIRED_FILES = (
     "assets/css/components.css",
     "assets/js/i18n.js",
     "assets/js/main.js",
+    "assets/js/motion.js",
 )
 
 # (d) Constructs that break the site when it is opened over file://.
-FORBIDDEN_JS = ("fetch(", "import ", "export ")
+# require() is CommonJS-only, so it fails in a plain <script> as well.
+FORBIDDEN_JS = ("fetch(", "import ", "export ", "require(")
 
 # Same class of defect, reported as a warning only (kept out of the gate so the
 # required checks stay exactly what was asked for).
@@ -104,6 +111,10 @@ THEME_KEY_PATTERNS = (
         r"(request[._-]?card|(^|\.)request($|[._-]))", re.IGNORECASE
     )),
     ("header-cta", re.compile(r"header[._-]?cta", re.IGNORECASE)),
+    ("hold-cta", re.compile(r"hold[._-]label", re.IGNORECASE)),
+    ("hero-rotate", re.compile(r"hero[._-]rotate", re.IGNORECASE)),
+    ("card-expand", re.compile(r"(expand|collapse)[._-]?more|expand[._-]?less",
+                               re.IGNORECASE)),
 )
 
 # (e) Home grid contract after the F4 redesign: two case cards plus one NDA
@@ -159,6 +170,7 @@ class PageParser(HTMLParser):
         self.html_attrs = None  # (line, attrs dict) of the first <html> tag
         self.ids = []          # [(line, id_value, tag)]
         self.classes = []      # [(line, class_name, tag)]
+        self.elements = []     # [{"tag", "attrs", "line"}] for ARIA/behaviour checks
         self._open = []        # stack of currently open tag names
         self._card_stack = []  # stack of open home-card frames (both classes)
 
@@ -181,6 +193,7 @@ class PageParser(HTMLParser):
         id_value = data.get("id")
         if id_value:
             self.ids.append((line, str(id_value), tag))
+        self.elements.append({"tag": tag, "attrs": data, "line": line})
 
         classes = (data.get("class") or "").split()
         for class_name in classes:
@@ -570,11 +583,13 @@ def check_home_cards(root: Path, pages, parsed):
             f"found {len(request_cards)}"
         )
 
+    case_targets = []
     for number, card in enumerate(case_cards, 1):
         if not card["links"]:
             problems.append(
                 f"index.html:{card['line']}: .case-card #{number} contains no links"
             )
+        into_cases = []
         for attr, value in card["links"]:
             target, ok, _reason = resolve_link(index.parent, root, value)
             if not ok:
@@ -582,6 +597,50 @@ def check_home_cards(root: Path, pages, parsed):
                     f"index.html:{card['line']}: .case-card #{number} "
                     f"{attr}=\"{value}\" -> not found (resolved to {target})"
                 )
+                continue
+            if (attr == "href" and target is not None
+                    and target.suffix.lower() in (".html", ".htm")
+                    and target.parent.name == "cases"):
+                into_cases.append(value)
+        if not into_cases:
+            problems.append(
+                f"index.html:{card['line']}: .case-card #{number} has no href into "
+                f"cases/ — the card does not open a case study"
+            )
+        case_targets.extend(into_cases)
+
+    if len(case_cards) > 1 and len(set(case_targets)) < len(case_cards):
+        problems.append(
+            f"index.html: the {len(case_cards)} .case-card elements point at only "
+            f"{len(set(case_targets))} distinct case study page(s): "
+            + ", ".join(sorted(set(case_targets)))
+        )
+
+    toggles = [element for element in data.elements
+               if "data-expand-toggle" in element["attrs"]]
+    if len(toggles) < len(case_cards):
+        problems.append(
+            f"index.html: {len(case_cards)} .case-card element(s) but only "
+            f"{len(toggles)} [data-expand-toggle] button(s) — a card cannot be "
+            f"expanded without its toggle"
+        )
+    for element in toggles:
+        attrs = element["attrs"]
+        line = element["line"]
+        if "aria-expanded" not in attrs:
+            problems.append(
+                f"index.html:{line}: [data-expand-toggle] has no aria-expanded"
+            )
+        controls = (attrs.get("aria-controls") or "").strip()
+        if not controls:
+            problems.append(
+                f"index.html:{line}: [data-expand-toggle] has no aria-controls"
+            )
+        elif not any(entry[1] == controls for entry in data.ids):
+            problems.append(
+                f"index.html:{line}: aria-controls={controls!r} matches no id on "
+                f"the page (the expandable panel is not connected)"
+            )
 
     for number, card in enumerate(request_cards, 1):
         if not any(is_telegram_href(value) for _attr, value in card["links"]):
@@ -601,9 +660,9 @@ def check_home_cards(root: Path, pages, parsed):
     if problems:
         return False, problems
     return True, [
-        f"index.html: {EXPECTED_CASE_CARDS} .case-card + "
-        f"{EXPECTED_REQUEST_CARDS} .request-card with a Telegram CTA, "
-        f"all links resolve"
+        f"index.html: {EXPECTED_CASE_CARDS} .case-card (distinct case studies, "
+        f"expand toggles wired) + {EXPECTED_REQUEST_CARDS} .request-card with a "
+        f"Telegram CTA, all links resolve"
     ]
 
 
@@ -682,12 +741,49 @@ def check_theme_markup(root: Path, pages, parsed):
                 f"{rel}: no element with class hero__title or case-hero found"
             )
 
+        scripts = [str(value).strip() for _line, attr, value in data.links
+                   if attr == "src" and str(value).strip().lower().endswith(".js")]
+        if not any(source.endswith("assets/js/motion.js") for source in scripts):
+            problems.append(
+                f"{rel}: does not load assets/js/motion.js — the page would "
+                f"render without the motion layer"
+            )
+
+        navs = [element for element in data.elements
+                if element["tag"] == "nav"
+                and "nav" in (element["attrs"].get("class") or "").split()]
+        if not navs:
+            problems.append(f'{rel}: no <nav class="nav"> found')
+        for element in navs:
+            if not (element["attrs"].get("aria-label") or "").strip():
+                problems.append(
+                    f'{rel}:{element["line"]}: <nav class="nav"> has no aria-label'
+                )
+
+        for element in data.elements:
+            attrs = element["attrs"]
+            if "data-morph-toggle" not in attrs:
+                continue
+            line = element["line"]
+            for required in ("aria-expanded", "aria-controls"):
+                if required not in attrs:
+                    problems.append(
+                        f"{rel}:{line}: morph navigation toggle has no {required}"
+                    )
+            controls = (attrs.get("aria-controls") or "").strip()
+            if controls and not any(entry[1] == controls for entry in data.ids):
+                problems.append(
+                    f"{rel}:{line}: morph toggle aria-controls={controls!r} "
+                    f"matches no id on the page"
+                )
+
     if problems:
         return False, problems
     values = ", ".join(theme_values) if theme_values else "none"
     return True, [
         f"{len(pages)} page(s): data-theme={values} on <html>, #themeToggle, "
-        f".header-cta and hero title present"
+        f".header-cta, hero title, <nav class=\"nav\">, motion.js and a wired "
+        f"morph toggle present"
     ]
 
 

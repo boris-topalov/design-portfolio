@@ -1,83 +1,90 @@
 /* ==========================================================================
-   Design tokens v2 — "Molten horizon"
-   Black + #E85002, grain gradients, hemisphere glow, dense uppercase grotesque.
-   Two themes: dark (default: html[data-theme="dark"] or no attribute) / light.
-   Variable names are a contract: extend, never rename.
-   Rationale, contrast ratios and type scale: .design/design-notes-v2.md
+   Design tokens v3 — "Quiet glass"
+   Neutral, dark-first system modelled on the motion-component libraries
+   (Kokonut UI / SmoothUI): near-black glass, hairline borders, one muted
+   sand accent, one cool secondary, tiny precise motion.
+   Dark is the default theme; light is an override on html[data-theme="light"].
+   Token names are a contract: extend, never rename.
+   Rationale, contrast table and motion spec: .design/design-notes-v3.md
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Theme-independent constants
-   Fixed colour ramps for the hybrid layout: dark hero blocks stay dark,
-   light case sections stay light — in BOTH themes.
+   1. Theme-independent constants + dark theme (default)
    -------------------------------------------------------------------------- */
 
 :root {
-  /* Brand ---------------------------------------------------------------- */
-  --brand-1: #000000;   /* base */
-  --brand-2: #E85002;   /* brand orange */
-  --brand-3: #C10801;   /* gradient stop, deep red */
-  --brand-4: #F16001;   /* gradient stop, hot orange */
-  --brand-5: #D9C3AB;   /* gradient stop, warm sand */
+  color-scheme: dark;
 
-  /* Fixed dark surface --------------------------------------------------- */
-  --d-bg: #000000;
-  --d-elev: #0D0C0B;
-  --d-elev-2: #171513;
-  --d-text: #FFFFFF;
-  --d-muted: #A7A7A7;
-  --d-line: rgba(255, 255, 255, .12);
-  --d-line-strong: rgba(255, 255, 255, .24);
+  /* Surfaces ------------------------------------------------------------- */
+  --bg: #08090A;
+  --bg-2: #0E1012;
+  --surface: #0E1012;
+  --surface-2: #141719;
 
-  /* Fixed light surface -------------------------------------------------- */
-  --l-bg: #F9F9F9;
+  /* Ink ------------------------------------------------------------------ */
+  --text: #EDEDED;                 /* 17.02:1 on --bg */
+  --muted: #8A8F98;                /* 6.13:1 on --bg, 5.87:1 on --surface */
+
+  /* Hairlines ------------------------------------------------------------ */
+  --line: rgba(255, 255, 255, .10);
+  --line-strong: rgba(255, 255, 255, .18);
+
+  /* Accents --------------------------------------------------------------
+     Sand is a *text and hairline* accent, never a large button fill.
+     Cool grey-blue is the second voice: labels, counters, secondary marks. */
+  --accent: #D9C3AB;               /* 11.71:1 on --bg */
+  --accent-2: #8A94A6;             /* 6.52:1 on --bg */
+  --accent-soft: rgba(217, 195, 171, .12);
+  --on-accent: #08090A;            /* ink on sand or on inverse fill */
+  --accent-ink: #D9C3AB;           /* legacy alias: small accent text */
+  --accent-strong: #D9C3AB;
+  --accent-hover: #E6D5C1;
+
+  /* Glass ---------------------------------------------------------------- */
+  --glass: rgba(255, 255, 255, .045);
+  --glass-border: rgba(255, 255, 255, .09);
+  --blur: 16px;
+
+  /* Depth ---------------------------------------------------------------- */
+  --shadow: 0 1px 1px rgba(0, 0, 0, .40), 0 20px 50px -24px rgba(0, 0, 0, .75);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, .40), 0 32px 70px -30px rgba(0, 0, 0, .85);
+  --shadow-glow: 0 18px 60px -32px rgba(217, 195, 171, .38);
+
+  /* Sticky glass header / floating island --------------------------------
+     .84 keeps the bar legible when it floats over the paper case band:
+     composite over #F4F4F2 is rgb(46,47,47); --header-ink holds 7.19:1. */
+  --header-bg: rgba(8, 9, 10, .84);
+  --header-border: rgba(255, 255, 255, .09);
+  --header-ink: #B9BEC6;
+  --header-ink-hover: #EDEDED;
+  --header-h: 76px;
+
+  /* Fixed paper scope (light proof bands in BOTH themes) ----------------- */
+  --l-bg: #F4F4F2;
   --l-elev: #FFFFFF;
-  --l-elev-2: #F1EFEC;
-  --l-text: #0A0A0A;
-  --l-muted: #646464;
-  --l-line: #E6E2DC;
-  --l-line-strong: #D2CCC4;
-
-  /* Gradients ------------------------------------------------------------
-     --grad-1: full brand sweep — accent words, hairlines, button hover.
-     --grad-2: deep red -> hot orange, radial glow core.
-     --grad-3: warm sand -> transparent, soft horizon light.
-     --grad-4: near-black mesh for large surface washes.                     */
-  --grad-1: linear-gradient(100deg, #000000 0%, #C10801 42%, #F16001 72%, #D9C3AB 100%);
-  --grad-2: radial-gradient(120% 120% at 50% 100%, #F16001 0%, #C10801 45%, rgba(0, 0, 0, 0) 78%);
-  --grad-3: radial-gradient(60% 60% at 50% 100%, rgba(217, 195, 171, .55) 0%, rgba(217, 195, 171, 0) 70%);
-  --grad-4: radial-gradient(120% 90% at 15% 0%, #1A0E06 0%, #000000 58%, #000000 100%);
-  /* Text-only sweep: all stops stay legible on black (5.2:1+). Never start a
-     clipped-text gradient at #000 — the first letters would vanish. */
-  --grad-text: linear-gradient(100deg, #F16001 0%, #E85002 42%, #D9C3AB 100%);
-
-  /* Glow + grain --------------------------------------------------------- */
-  --glow: #F16001;
-  --glow-soft: rgba(232, 80, 2, .38);
-  --glow-hard: rgba(241, 96, 1, .85);
-  --grain-opacity: .14;          /* dark surfaces */
-  --grain-opacity-light: .07;    /* light surfaces */
-  --grain-url: url("../img/grain.svg");
-  --glow-url: url("../img/glow.svg");
+  --l-elev-2: #EFEFED;
+  --l-text: #101214;
+  --l-muted: #5F646B;
+  --l-line: rgba(16, 18, 20, .10);
+  --l-line-strong: rgba(16, 18, 20, .18);
 
   /* Typography -----------------------------------------------------------
-     No serif anywhere. One dense grotesque for display + text.
-     When the self-hosted woff2 registers under a different family name,
-     change the FIRST value of --font-display / --font-sans only.           */
+     One grotesque for display and text. Change only the first value of
+     both stacks when the self-hosted family name changes. */
   --font-display: "Manrope", "Inter Tight", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   --font-sans: "Manrope", "Inter", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
 
-  --fs-display: clamp(44px, 7.2vw, 104px);   /* hero, uppercase, tight */
-  --fs-hero: clamp(36px, 6.2vw, 84px);       /* h1 outside the homepage hero */
-  --fs-h2: clamp(26px, 4.2vw, 56px);
+  --fs-hero: clamp(42px, 7vw, 100px);      /* homepage h1, uppercase */
+  --fs-display: var(--fs-hero);            /* legacy alias */
+  --fs-h2: clamp(28px, 4.2vw, 56px);
   --fs-h3: clamp(19px, 1.5vw, 24px);
   --fs-body: 17px;
   --fs-small: 14px;
-  --fs-label: 12px;                          /* caps micro-label */
+  --fs-label: 11px;
 
-  --lh-display: .9;
-  --tracking-display: -.045em;               /* tight */
-  --tracking-label: .16em;                   /* wide, caps labels */
+  --lh-display: .92;
+  --tracking-display: -.035em;
+  --tracking-label: .18em;
 
   /* Spacing -------------------------------------------------------------- */
   --space-1: 8px;
@@ -86,118 +93,86 @@
   --space-4: 40px;
   --space-5: 64px;
   --space-6: 96px;
-  --space-7: 128px;
+  --space-7: 128px;                        /* legacy, used by old sections */
 
   /* Shape ---------------------------------------------------------------- */
-  --radius: 24px;
-  --radius-sm: 14px;
+  --radius: 22px;
+  --radius-sm: 12px;
   --radius-pill: 999px;
 
   /* Layout --------------------------------------------------------------- */
-  --max: 1180px;
-  --header-h: 72px;
+  --max: 1200px;
 
-  /* Motion --------------------------------------------------------------- */
+  /* Motion ---------------------------------------------------------------
+     Everything animates transform / opacity only. --spring is an expo-out
+     settle (fast start, long quiet tail); --ease-out is the plain fade
+     curve. Step up: dur-1 controls, dur-2 state, dur-3 entrances. */
   --ease-out: cubic-bezier(.22, .61, .36, 1);
-  --dur: .28s;
+  --spring: cubic-bezier(.22, 1, .36, 1);
+  --dur-1: .16s;
+  --dur-2: .32s;
+  --dur-3: .60s;
+  --dur: .28s;                             /* legacy alias */
+
+  /* Texture -------------------------------------------------------------- */
+  --grain-url: url("../img/grain.svg");
+  --grain-opacity: .10;
+  --grain-opacity-light: .05;
+  --glow-soft: rgba(217, 195, 171, .26);
+  --glow-hard: rgba(217, 195, 171, .48);
+
+  /* Optional text sweep, sand only (never starts at a near-black stop) --- */
+  --grad-text: linear-gradient(100deg, #E6D6C2 0%, #D9C3AB 52%, #B9A184 100%);
+  --grad-4: radial-gradient(120% 90% at 15% 0%, #101214 0%, #08090A 62%, #08090A 100%);
 }
 
 /* --------------------------------------------------------------------------
-   2. Light theme (html[data-theme="light"]; :root fallback)
+   2. Light theme — neutral paper, white surfaces, bronze accent
    -------------------------------------------------------------------------- */
 
-:root,
-[data-theme="light"] {
+html[data-theme="light"] {
   color-scheme: light;
 
-  --bg: #F9F9F9;
+  --bg: #F4F4F2;
+  --bg-2: #FFFFFF;
   --surface: #FFFFFF;
-  --surface-2: #F1EFEC;
-  --text: #0A0A0A;
-  --muted: #646464;           /* 5.62:1 on #F9F9F9 */
-  --line: #E6E2DC;
-  --line-strong: #CFC9C1;
+  --surface-2: #EFEFED;
 
-  --accent: #E85002;          /* graphics / large text: 3.57:1 on #F9F9F9 */
-  --accent-strong: #E85002;
-  --accent-hover: #C10801;
-  --accent-soft: #FBE9DE;     /* tinted fill */
-  --accent-ink: #C10801;      /* small orange text on light: 6.04:1 */
-  --on-accent: #0A0A0A;       /* dark ink on orange: 5.58:1 */
+  --text: #101214;                 /* 17.05:1 on --bg */
+  --muted: #5F646B;                /* 5.41:1 on --bg, 5.96:1 on --surface */
 
-  --bg-dark: #000000;
-  --bg-light: #F9F9F9;
-  --elev-dark: #0D0C0B;
-  --elev-light: #FFFFFF;
+  --line: rgba(16, 18, 20, .10);
+  --line-strong: rgba(16, 18, 20, .18);
 
-  --shadow: 0 1px 2px rgba(20, 14, 9, .05), 0 10px 30px rgba(20, 14, 9, .07);
-  --shadow-lift: 0 2px 6px rgba(20, 14, 9, .06), 0 22px 48px rgba(20, 14, 9, .12);
-  --shadow-glow: 0 18px 50px -18px rgba(232, 80, 2, .45);
-  --focus-ring: 0 0 0 3px rgba(232, 80, 2, .38);
+  /* Sand stays the family, darkened to bronze so it can carry text and
+     focus rings on paper: 5.35:1 on --bg, 5.89:1 on white. */
+  --accent: #7C5F3F;
+  --accent-2: #5D6879;             /* 5.12:1 on --bg */
+  --accent-soft: rgba(124, 95, 63, .10);
+  --on-accent: #F7F7F5;            /* 17.50:1 on --text fill */
+  --accent-ink: #7C5F3F;
+  --accent-strong: #7C5F3F;
+  --accent-hover: #6E5233;
 
-  /* Glass (header / cards on light) */
-  --glass-bg: rgba(249, 249, 249, .74);
-  --glass-border: rgba(10, 10, 10, .08);
+  --glass: rgba(255, 255, 255, .62);
+  --glass-border: rgba(16, 18, 20, .10);
+  --blur: 18px;
 
-  /* Header surface. Near-opaque on purpose: the sticky bar scrolls over both
-     the dark hero and the light case panels, so its contrast must not depend
-     on the backdrop. .95 over #000 composes to rgb(237,237,237) — the worst
-     case for this theme (nav 7.57:1, logo 16.91:1). */
-  --header-bg: rgba(249, 249, 249, .95);
-  --header-border: rgba(10, 10, 10, .08);
-  --header-ink: #4A4A4A;        /* 7.57:1 on rgb(237,237,237) */
-  --header-ink-hover: #0A0A0A;  /* 16.91:1 */
-}
+  --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 18px 44px -26px rgba(20, 22, 26, .20);
+  --shadow-lift: 0 2px 5px rgba(20, 22, 26, .07), 0 30px 64px -30px rgba(20, 22, 26, .28);
+  --shadow-glow: 0 16px 48px -30px rgba(124, 95, 63, .30);
 
-/* --------------------------------------------------------------------------
-   3. Dark theme — the default. Applied with data-theme="dark" OR when the
-      attribute is missing (no-JS / first paint before the theme script).
-   -------------------------------------------------------------------------- */
+  /* .86 over the fixed dark hero composes to rgb(211,211,210); ink 6.87:1. */
+  --header-bg: rgba(244, 244, 242, .86);
+  --header-border: rgba(16, 18, 20, .08);
+  --header-ink: #3C4148;
+  --header-ink-hover: #101214;
 
-[data-theme="dark"],
-html:not([data-theme]) {
-  color-scheme: dark;
+  --grain-opacity: .05;
+  --grain-opacity-light: .05;
+  --glow-soft: rgba(124, 95, 63, .18);
+  --glow-hard: rgba(124, 95, 63, .32);
 
-  --bg: #000000;
-  --surface: #0D0C0B;
-  --surface-2: #171513;
-  --text: #FFFFFF;            /* 21:1 on #000 */
-  --muted: #A7A7A7;           /* 8.73:1 on #000 */
-  --line: rgba(255, 255, 255, .12);
-  --line-strong: rgba(255, 255, 255, .26);
-
-  --accent: #E85002;          /* 5.58:1 on #000 */
-  --accent-strong: #E85002;
-  --accent-hover: #F16001;
-  --accent-soft: rgba(232, 80, 2, .14);
-  --accent-ink: #F16001;      /* 6.41:1 on #000 */
-  --on-accent: #0A0A0A;       /* 5.23:1 on #E85002 */
-
-  --bg-dark: #000000;
-  --bg-light: #F9F9F9;
-  --elev-dark: #0D0C0B;
-  --elev-light: #FFFFFF;
-
-  --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 14px 34px rgba(0, 0, 0, .55);
-  --shadow-lift: 0 2px 8px rgba(0, 0, 0, .55), 0 30px 70px rgba(0, 0, 0, .7);
-  --shadow-glow: 0 24px 70px -24px rgba(241, 96, 1, .55);
-  --focus-ring: 0 0 0 3px rgba(241, 96, 1, .45);
-
-  --glass-bg: rgba(10, 9, 8, .62);
-  --glass-border: rgba(255, 255, 255, .10);
-
-  /* Header surface. .92 black keeps the bar dark over white case panels:
-     composite rgb(20,20,20) → nav 7.66:1, logo 18.42:1. .62 used to compose to
-     rgb(101,100,100) over #F9F9F9 and the nav fell to 2.45:1. */
-  --header-bg: rgba(0, 0, 0, .92);
-  --header-border: rgba(255, 255, 255, .10);
-  --header-ink: #A7A7A7;        /* 7.66:1 on rgb(20,20,20) */
-  --header-ink-hover: #FFFFFF;  /* 18.42:1 */
-}
-
-/* Selection uses the brand accent in both themes -------------------------- */
-
-::selection {
-  background: var(--accent);
-  color: #0A0A0A;
+  --grad-text: linear-gradient(100deg, #8A6B49 0%, #7C5F3F 52%, #5E4630 100%);
+  --grad-4: radial-gradient(120% 90% at 15% 0%, #FFFFFF 0%, #F4F4F2 62%, #F4F4F2 100%);
 }

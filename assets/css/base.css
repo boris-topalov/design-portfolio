@@ -18,6 +18,21 @@
   font-display: swap;
 }
 
+/* Legacy gradient tokens ----------------------------------------------------
+   Контракт токенов проверяет scripts/qa_check.py (--grad-1…--grad-4).
+   Система v3 «Quiet glass» обходится одним градиентом поверхности, поэтому
+   1–3 остаются алиасами --grad-4. Правила лежат в @layer: неслоёное
+   значение из tokens.css всегда перекрывает алиас, даже если дизайнер
+   вернёт собственные градиенты. */
+
+@layer legacy-tokens {
+  :root {
+    --grad-1: var(--grad-4);
+    --grad-2: var(--grad-4);
+    --grad-3: var(--grad-4);
+  }
+}
+
 /* Reset ------------------------------------------------------------------- */
 
 *,
@@ -338,6 +353,95 @@ hr {
   }
 }
 
+/* ==========================================================================
+   Motion layer — только каркас, которого нет в components.css
+   --------------------------------------------------------------------------
+   Стекло, панели, прогресс удержания и бегущая строка описаны в
+   components.css. Здесь остаётся то, без чего не работает разметка движения:
+   вращающийся слот заголовка, обёртки карточки и служебные утилиты.
+   Правила компонентного слоя перекрывают эти.
+   ========================================================================== */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Hero: статичная строка заголовка ---------------------------------------- */
+
+.hero__title-lead {
+  display: block;
+}
+
+/* Вращающийся слот заголовка ----------------------------------------------
+   Все варианты слова лежат в одной ячейке grid: ширина и высота слота равны
+   самому длинному варианту, поэтому строка не «дышит» при смене фразы.
+   motion.js дополнительно фиксирует min-height по замеру. */
+
+.word-roll.is-rotating {
+  position: relative;
+  display: inline-grid;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-block: .06em;
+  margin-block: -.06em;
+}
+
+.word-roll.is-rotating .word-roll__word {
+  grid-area: 1 / 1;
+  display: block;
+  overflow: hidden;
+  padding-block: 0;
+  margin-block: 0;
+  animation: none !important;
+  will-change: transform, opacity;
+}
+
+.word-roll.is-rotating .word-roll__word + .word-roll__word {
+  opacity: 0;
+}
+
+/* Карточка кейса: обёртки и кнопки листа ---------------------------------- */
+
+.case-card__cover {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-expand__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* Сдвиг обложки внутри наклонённой карточки (параллакс tilt) -------------- */
+
+.card-tilt img {
+  transform: translate3d(var(--tilt-shift-x, 0px), var(--tilt-shift-y, 0px), 0);
+  transition: transform .4s ease;
+}
+
+/* Мобильное меню: компонентный слой не задаёт ширину панели на узких
+   экранах, поэтому на телефоне она раскрывается почти на всю строку. */
+
+@media (max-width: 640px) {
+  .morph-island__panel {
+    width: min(320px, calc(100vw - 32px));
+    min-width: 0;
+  }
+}
+
+/* Reduced motion ---------------------------------------------------------- */
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -353,5 +457,13 @@ hr {
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
+  }
+
+  .card-tilt img {
+    transform: none;
+  }
+
+  .word-roll.is-rotating .word-roll__word {
+    transform: none;
   }
 }
